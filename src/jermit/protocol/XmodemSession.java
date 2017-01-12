@@ -29,7 +29,6 @@
 package jermit.protocol;
 
 import java.io.EOFException;
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -37,6 +36,7 @@ import java.io.RandomAccessFile;
 import java.util.LinkedList;
 
 import jermit.io.EOFInputStream;
+import jermit.io.LocalFileInterface;
 import jermit.io.ReadTimeoutException;
 
 /**
@@ -51,32 +51,32 @@ public class XmodemSession extends SerialFileTransferSession {
     /**
      * The NAK byte used to request a packet repeat.
      */
-    private static final byte NAK = 0x15;
+    public static final byte NAK = 0x15;
 
     /**
      * The ACK byte used to acknowledge an OK packet.
      */
-    private static final byte ACK = 0x06;
+    public static final byte ACK = 0x06;
 
     /**
      * The SOH byte used to flag a 128-byte block.
      */
-    private static final byte SOH = 0x01;
+    public static final byte SOH = 0x01;
 
     /**
      * The STX byte used to flag a 1024-byte block.
      */
-    private static final byte STX = 0x02;
+    public static final byte STX = 0x02;
 
     /**
      * The EOT byte used to end a transfer.
      */
-    private static final byte EOT = 0x04;
+    public static final byte EOT = 0x04;
 
     /**
      * The CAN byte used to forcefully terminate a transfer.
      */
-    private static final byte CAN = 0x18;
+    public static final byte CAN = 0x18;
 
     /**
      * Xmodem supports several variants.  These constants can be used to
@@ -116,9 +116,33 @@ public class XmodemSession extends SerialFileTransferSession {
     private Flavor flavor = Flavor.VANILLA;
 
     /**
-     * The current sequence number.
+     * Get the type of Xmodem transfer to perform.
+     *
+     * @return the Xmodem flavor
      */
-    private int sequenceNumber = 1;
+    public Flavor getFlavor() {
+        return flavor;
+    }
+
+    /**
+     * Set the type of Xmodem transfer to perform.
+     *
+     * @param flavor the Xmodem flavor
+     */
+    public void setFlavor(Flavor flavor) {
+        this.flavor = flavor;
+    }
+
+    /**
+     * The current sequence number.  Note package private access.
+     */
+    int sequenceNumber = 1;
+
+    /**
+     * The number of consecutive errors.  After 10 errors, the transfer is
+     * cancelled.  Note package private access.
+     */
+    int consecutiveErrors = 0;
 
     /**
      * Xmodem CRC routine was transliterated from XYMODEM.DOC.
@@ -144,12 +168,12 @@ public class XmodemSession extends SerialFileTransferSession {
     /**
      * Trim the CPM EOF byte (0x1A) from the end of a file.
      *
-     * @param file the file to trim
+     * @param filename the name of the file to trim on the local filesystem
      * @throws IOException if a java.io operation throws
      */
-    public void trimEOF(final File file) throws IOException {
+    public void trimEOF(final String filename) throws IOException {
         // SetLength() requires the file be open in read-write.
-        RandomAccessFile contents = new RandomAccessFile(file, "rw");
+        RandomAccessFile contents = new RandomAccessFile(filename, "rw");
         while (contents.length() > 0) {
             contents.seek(contents.length() - 1);
             int ch = contents.read();
@@ -159,6 +183,28 @@ public class XmodemSession extends SerialFileTransferSession {
                 // Found a non-EOF byte
                 break;
             }
+        }
+    }
+
+    /**
+     * Count a timeout, cancelling the transfer if there are too many
+     * consecutive errors.  Note package private access.
+     *
+     * @param output the stream to write to
+     * @throws IOException if a java.io operation throws
+     */
+    void timeout(final OutputStream output) throws IOException {
+
+        if (DEBUG) {
+            System.out.println("TIMEOUT");
+        }
+        addErrorMessage("TIMEOUT");
+
+        consecutiveErrors++;
+        if (consecutiveErrors == 10) {
+            // Cancel this transfer.
+            abort(output);
+            return;
         }
     }
 
@@ -179,7 +225,18 @@ public class XmodemSession extends SerialFileTransferSession {
         // Purge whatever is there, and try it all again.
         input.skip(input.available());
 
+        consecutiveErrors++;
+        if (consecutiveErrors == 10) {
+            // Cancel this transfer.
+            abort(output);
+            return;
+        }
+
         // Send NAK
+        if (DEBUG) {
+            System.out.println("NAK " + bytesTransferred);
+        }
+
         output.write(NAK);
         output.flush();
     }
@@ -204,13 +261,17 @@ public class XmodemSession extends SerialFileTransferSession {
     }
 
     /**
-     * Abort the transfer.
+     * Abort the transfer.  Note package private access.
      *
      * @param output the stream to write to
      * @throws IOException if a java.io operation throws
      */
-    private synchronized void abort(final OutputStream output)
+    synchronized void abort(final OutputStream output)
         throws IOException {
+
+        if (DEBUG) {
+            System.out.println("ABORT");
+        }
 
         state = State.ABORT;
 
@@ -242,6 +303,7 @@ public class XmodemSession extends SerialFileTransferSession {
 
         // Keep reading until we get a valid packet.
         for (;;) {
+            boolean discard = false;
 
             try {
 
@@ -276,28 +338,41 @@ public class XmodemSession extends SerialFileTransferSession {
                 // We got SOH/STX.  Now read the sequence number and its
                 // complement.
                 int seqByte = input.read();
-                if ((seqByte & 0xFF) == ((sequenceNumber - 1) & 0xFF)) {
-                    addErrorMessage("DUPLICATE BLOCK #" + sequenceNumber);
-                    purge(input, output);
-                    continue;
+                if (DEBUG) {
+                    System.out.printf("seqByte: 0x%02x\n", seqByte);
                 }
-                if (seqByte != (sequenceNumber % 256)) {
+                if ((seqByte & 0xFF) == ((sequenceNumber - 1) & 0xFF)) {
+                    addErrorMessage("DUPLICATE BLOCK #" + (sequenceNumber - 1));
+                    if ((flavor == Flavor.X_1K_G) && (sequenceNumber == 2)) {
+                        // The remote side is not honoring 1K/G mode.
+                        // Downgrade to vanilla Xmodem 1K (switch NCGbyte to
+                        // 'C').
+                        addErrorMessage("DOWNGRADE TO XMODEM/1K");
+                        flavor = Flavor.X_1K;
+                    }
+                    // Finish reading this block, and blindly ack it, but
+                    // don't return it to the caller.
+                    discard = true;
+                } else if (seqByte != (sequenceNumber % 256)) {
                     addErrorMessage("BAD BLOCK NUMBER IN BLOCK #" + sequenceNumber);
                     purge(input, output);
                     continue;
                 }
 
                 int compSeqByte = input.read();
-                if ((255 - compSeqByte) != (sequenceNumber % 256)) {
-                    addErrorMessage("COMPLIMENT BYTE BAD IN BLOCK #" +
-                        sequenceNumber);
-                    purge(input, output);
-                    continue;
-                }
 
-                if (DEBUG) {
-                    System.out.printf("SEQ: 0x%02x %d\n", sequenceNumber,
-                        sequenceNumber);
+                if (discard == false) {
+                    if ((255 - compSeqByte) != (sequenceNumber % 256)) {
+                        addErrorMessage("COMPLIMENT BYTE BAD IN BLOCK #" +
+                            sequenceNumber);
+                        purge(input, output);
+                        continue;
+                    }
+
+                    if (DEBUG) {
+                        System.out.printf("SEQ: 0x%02x %d\n", sequenceNumber,
+                            sequenceNumber);
+                    }
                 }
 
                 // Now read the data.  Grab only up to blockSize.
@@ -320,6 +395,17 @@ public class XmodemSession extends SerialFileTransferSession {
                     checksum = checksum & 0xFF;
 
                     int given = input.read();
+
+                    if (discard == true) {
+                        // This was a duplicate block, ACK it even if the
+                        // data is crap.
+                        if (flavor != Flavor.X_1K_G) {
+                            // Send ACK
+                            ack(input, output);
+                        }
+                        continue;
+                    }
+
                     if (checksum != given) {
                         addErrorMessage("CHECKSUM ERROR IN BLOCK #" +
                             sequenceNumber);
@@ -333,6 +419,7 @@ public class XmodemSession extends SerialFileTransferSession {
                         // Send ACK
                         ack(input, output);
                     }
+                    consecutiveErrors = 0;
                     return data;
                 }
 
@@ -342,6 +429,16 @@ public class XmodemSession extends SerialFileTransferSession {
                 int given2 = input.read();
                 given = given << 8;
                 given |= given2;
+
+                if (discard == true) {
+                    // This was a duplicate block, ACK it even if the data is
+                    // crap.
+                    if (flavor != Flavor.X_1K_G) {
+                        // Send ACK
+                        ack(input, output);
+                    }
+                    continue;
+                }
 
                 if (crc != given) {
                     addErrorMessage("CRC ERROR IN BLOCK #" +
@@ -359,14 +456,27 @@ public class XmodemSession extends SerialFileTransferSession {
                 if (flavor != Flavor.X_1K_G) {
                     ack(input, output);
                 }
+                consecutiveErrors = 0;
                 return data;
 
             } catch (ReadTimeoutException e) {
+                if (DEBUG) {
+                    System.out.println("TIMEOUT");
+                }
                 addErrorMessage("TIMEOUT");
+                if ((flavor == Flavor.X_1K_G) && (sequenceNumber == 2)) {
+                    // The remote side is not honoring 1K/G mode.  Downgrade
+                    // to vanilla Xmodem (switch NCGbyte to NAK).
+                    addErrorMessage("DOWNGRADE TO XMODEM/1K");
+                    flavor = Flavor.X_1K;
+                }
                 purge(input, output);
                 continue;
 
             } catch (EOFException e) {
+                if (DEBUG) {
+                    System.out.println("UNEXPECTED END OF TRANSMISSION");
+                }
                 addErrorMessage("UNEXPECTED END OF TRANSMISSION");
                 abort(output);
                 return new byte[0];
@@ -407,15 +517,95 @@ public class XmodemSession extends SerialFileTransferSession {
             break;
         case CRC:
         case X_1K:
-            // 'C'
-            output.write(0x43);
+            // 'C' - 0x43
+            output.write('C');
             break;
         case X_1K_G:
-            // 'G'
-            output.write(0x47);
+            // 'G' - 0x47
+            if (DEBUG) {
+                System.out.println("Requested -G");
+            }
+            output.write('G');
             break;
         }
         output.flush();
+    }
+
+    /**
+     * Compute the checksum or CRC and send that to the other side.
+     *
+     * @param output the stream to write to
+     * @param data the block data
+     * @throws IOException if a java.io operation throws
+     */
+    public void writeChecksum(final OutputStream output,
+        byte [] data) throws IOException {
+
+        if ((flavor == Flavor.VANILLA) || (flavor == Flavor.RELAXED)) {
+            // Checksum
+            int checksum = 0;
+            for (int i = 0; i < data.length; i++) {
+                int ch = ((int) data[i]) & 0xFF;
+                checksum += ch;
+            }
+            output.write(checksum & 0xFF);
+        } else {
+            // CRC
+            int crc = crc16(data);
+            output.write((crc >> 8) & 0xFF);
+            output.write( crc       & 0xFF);
+        }
+        output.flush();
+    }
+
+    /**
+     * Read a 128 or 1024 byte block from file.
+     *
+     * @param file the file to read from
+     * @return the bytes read, or null of the file is at EOF
+     * @throws IOException if a java.io operation throws
+     */
+    public byte [] readFileBlock(final InputStream file) throws IOException {
+        int blockSize = 128;
+        if ((flavor == Flavor.X_1K) || (flavor == Flavor.X_1K_G)) {
+            blockSize = 1024;
+        }
+        byte [] data = new byte[blockSize];
+        int rc = file.read(data);
+        if (rc == data.length) {
+            return data;
+        }
+        if (rc == -1) {
+            // EOF
+            return null;
+        }
+        // We have a shorter-than-asked block.  For file streams this is
+        // typically the very last block.  But if we have a different kind of
+        // stream it could just be an incomplete read.  Read either a full
+        // block, or definitely hit EOF.
+
+        int blockN = rc;
+        while (blockN < data.length) {
+            rc = file.read(data, blockN, blockSize - blockN);
+            if (rc == -1) {
+                // Cool, EOF.  This will be the last block.
+                if (blockN < 128) {
+                    // We can use a shorter block, so do that.
+                    byte [] shortBlock = new byte[128];
+                    System.arraycopy(data, 0, shortBlock, 0, blockN);
+                    data = shortBlock;
+                }
+                // Now pad it with CPM EOF.
+                for (int i = blockN; i < data.length; i++) {
+                    data[i] = 0x1A;
+                }
+                return data;
+            }
+            blockN += rc;
+        }
+
+        // We read several times, but now have a complete block.
+        return data;
     }
 
     /**
@@ -445,7 +635,7 @@ public class XmodemSession extends SerialFileTransferSession {
      * @param download If true, this session represents a download.  If
      * false, it represents an upload.
      */
-    public XmodemSession(final Flavor flavor, final File file,
+    public XmodemSession(final Flavor flavor, final LocalFileInterface file,
         final boolean download) {
 
         super(file, download);

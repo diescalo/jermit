@@ -28,7 +28,7 @@
  */
 package jermit.protocol;
 
-import java.io.File;
+import jermit.io.LocalFileInterface;
 
 /**
  * FileInfo stores one file's metadata for a serial file transfer.
@@ -39,7 +39,7 @@ public class FileInfo {
      * The path to the file if stored on the local filesystem.  Note package
      * private access.
      */
-    File localFile;
+    LocalFileInterface localFile;
 
     /**
      * The name of the file on the remote system.  Note package private
@@ -106,7 +106,7 @@ public class FileInfo {
      *
      * @return the local file
      */
-    public File getLocalFile() {
+    public LocalFileInterface getLocalFile() {
         return localFile;
     }
 
@@ -140,17 +140,12 @@ public class FileInfo {
      * Construct an instance based on a local file.
      *
      * @param file path to file on the local filesystem
-     * @throws IllegalArgumentException if file is not a readable file
      */
-    public FileInfo(final File file) {
-        if (!file.isFile()) {
-            throw new IllegalArgumentException(file + " is not a normal file");
-        }
-
+    public FileInfo(final LocalFileInterface file) {
         localFile       = file;
-        size            = file.length();
-        modtime         = file.lastModified();
-        remoteFilename  = file.getName();
+        size            = file.getLength();
+        modtime         = file.getTime();
+        remoteFilename  = file.getRemoteName();
     }
 
 }

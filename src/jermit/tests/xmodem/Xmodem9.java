@@ -31,20 +31,20 @@ package jermit.tests.xmodem;
 import java.io.File;
 import java.io.IOException;
 
-import jermit.protocol.XmodemReceiver;
+import jermit.protocol.XmodemSender;
 import jermit.protocol.XmodemSession;
 import jermit.tests.SerialTransferTest;
 import jermit.tests.TestFailedException;
 
 /**
- * Test a basic binary file Xmodem file transfer.
+ * Test a basic Xmodem file transfer.
  */
-public final class Xmodem3 extends SerialTransferTest {
+public final class Xmodem9 extends SerialTransferTest implements Runnable {
 
     /**
      * Public constructor.
      */
-    public Xmodem3() {
+    public Xmodem9() {
     }
 
     /**
@@ -52,36 +52,60 @@ public final class Xmodem3 extends SerialTransferTest {
      */
     @Override
     public void doTest() throws IOException, TestFailedException {
-        System.out.printf("Xmodem3: binary file download - VANILLA\n");
+        System.out.printf("Xmodem9: ASCII file upload - CRC\n");
 
         // Process:
         //
-        //   1. Extract jermit/tests/data/lady-of-shalott.jpg to
+        //   1. Extract jermit/tests/data/ALICE26A_NO_EOT.TXT to
         //      a temp file.
-        //   2. Spawn 'sx /path/to/lady-of-shalott.jpg'
-        //   3. Spin up XmodemReceiver to download to a temp file.
+        //   2. Spawn 'rx /path/to/temp'
+        //   3. Spin up XmodemSender to send /path/to/ALICE26A_NO_EOT.TXT.
         //   4. Read both files and compare contents.
 
-        File source = File.createTempFile("send-xmodem", ".jpg");
+        File source = File.createTempFile("send-xmodem", ".txt");
         saveResourceToFile("jermit/tests/data/lady-of-shalott.jpg", source);
         source.deleteOnExit();
 
-        File destination = File.createTempFile("receive-xmodem", ".jpg");
+        File destination = File.createTempFile("receive-xmodem", ".txt");
         destination.deleteOnExit();
 
-        ProcessBuilder sxb = new ProcessBuilder("sx", source.getPath());
-        Process sx = sxb.start();
+        ProcessBuilder rxb = new ProcessBuilder("rx", "-c",
+            destination.getPath());
+        Process rx = rxb.start();
 
         // Allow overwrite of destination file, because we just created it.
-        XmodemReceiver rx = new XmodemReceiver(XmodemSession.Flavor.VANILLA,
-            sx.getInputStream(), sx.getOutputStream(),
-            destination.getPath(), true);
+        XmodemSender sx = new XmodemSender(XmodemSession.Flavor.CRC,
+            rx.getInputStream(), rx.getOutputStream(),
+            source.getPath(), true);
 
-        rx.run();
-        if (!compareFiles(source, destination)) {
+        sx.run();
+
+        // Wait for rx to finish before comparing files!
+        for (;;) {
+            try {
+                if (rx.waitFor() == 0) {
+                    break;
+                }
+            } catch (InterruptedException e) {
+                // SQUASH
+            }
+        }
+
+        if (!compareFilesAscii(source, destination)) {
             throw new TestFailedException("Files are not the same");
         }
 
+    }
+
+    /**
+     * Run the test.  Any exceptions thrown will be emitted to System.err.
+     */
+    public void run() {
+        try {
+            doTest();
+        } catch (Throwable t) {
+            t.printStackTrace();
+        }
     }
 
     /**
@@ -91,7 +115,7 @@ public final class Xmodem3 extends SerialTransferTest {
      */
     public static void main(final String [] args) {
         try {
-            Xmodem3 test = new Xmodem3();
+            Xmodem9 test = new Xmodem9();
             test.doTest();
         } catch (Throwable t) {
             t.printStackTrace();

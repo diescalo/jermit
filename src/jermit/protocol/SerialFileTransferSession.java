@@ -28,14 +28,17 @@
  */
 package jermit.protocol;
 
-import java.io.File;
 import java.util.LinkedList;
+import jermit.io.LocalFileInterface;
 
 /**
  * SerialFileTransferSession encapsulates all the state used by an upload or
  * download.
  */
 public abstract class SerialFileTransferSession {
+
+    // If true, enable some debugging output.
+    private static final boolean DEBUG = false;
 
     /**
      * The possible states for a transfer session.
@@ -169,7 +172,9 @@ public abstract class SerialFileTransferSession {
      * @param download If true, this session represents a download.  If
      * false, it represents an upload.
      */
-    protected SerialFileTransferSession(File file, boolean download) {
+    protected SerialFileTransferSession(LocalFileInterface file,
+        boolean download) {
+
         this.download = download;
         messages = new LinkedList<SerialFileTransferMessage>();
         files = new LinkedList<FileInfo>();
@@ -183,6 +188,9 @@ public abstract class SerialFileTransferSession {
      * @param message the message text
      */
     synchronized void addInfoMessage(String message) {
+        if (DEBUG) {
+            System.out.println("addInfoMessage(): " + message);
+        }
         messages.add(new SerialFileTransferMessage(message));
     }
 
@@ -193,6 +201,9 @@ public abstract class SerialFileTransferSession {
      * @param message the message text
      */
     synchronized void addErrorMessage(String message) {
+        if (DEBUG) {
+            System.out.println("addErrorMessage(): " + message);
+        }
         messages.add(new SerialFileTransferMessage(
             SerialFileTransferMessage.ERROR, message));
     }
@@ -318,6 +329,5 @@ public abstract class SerialFileTransferSession {
      * was a download.  If false, delete the file.
      */
     public abstract void skipFile(boolean keepPartial);
-
 
 }

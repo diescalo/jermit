@@ -52,7 +52,7 @@ public final class Xmodem4 extends SerialTransferTest {
      */
     @Override
     public void doTest() throws IOException, TestFailedException {
-        System.out.printf("Xmodem4: binary file transfer - CRC\n");
+        System.out.printf("Xmodem4: binary file download - CRC\n");
 
         // Process:
         //

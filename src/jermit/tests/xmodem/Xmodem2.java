@@ -54,7 +54,7 @@ public final class Xmodem2 extends SerialTransferTest {
      */
     @Override
     public void doTest() throws IOException, TestFailedException {
-        System.out.printf("Xmodem2: ASCII file transfer with terminal ^Z\n");
+        System.out.printf("Xmodem2: ASCII file download with terminal ^Z\n");
 
         // Process:
         //

@@ -28,13 +28,15 @@
  */
 package jermit.protocol;
 
+import java.io.EOFException;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.InputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 
 import jermit.io.EOFInputStream;
+import jermit.io.LocalFile;
+import jermit.io.LocalFileInterface;
 import jermit.io.ReadTimeoutException;
 import jermit.io.TimeoutInputStream;
 
@@ -67,12 +69,12 @@ public class XmodemSender implements Runnable {
     private boolean cancel = false;
 
     /**
-     * Construct an instance to download a file using existing I/O Streams.
+     * Construct an instance to upload a file using existing I/O Streams.
      *
      * @param flavor the Xmodem flavor to use
      * @param input a stream that receives bytes sent by an Xmodem file
-     * sender
-     * @param output a stream to sent bytes to an Xmodem file sender
+     * receiver
+     * @param output a stream to sent bytes to an Xmodem file receiver
      * @param filename the file to write the data to
      * @param overwrite if true, permit writing to filename even if it
      * already exists
@@ -88,8 +90,11 @@ public class XmodemSender implements Runnable {
             throw new IllegalArgumentException(filename + " already exists, " +
                 "will not overwrite");
         }
+
+        LocalFile localFile = new LocalFile(file);
+
         this.output     = output;
-        session         = new XmodemSession(flavor, file, false);
+        session         = new XmodemSession(flavor, localFile, false);
         if (input instanceof TimeoutInputStream) {
             // Someone has already set the timeout.  Keep their value.
             this.input  = new EOFInputStream(input);
@@ -101,11 +106,11 @@ public class XmodemSender implements Runnable {
     }
 
     /**
-     * Construct an instance to download a file using existing I/O Streams.
+     * Construct an instance to upload a file using existing I/O Streams.
      *
      * @param input a stream that receives bytes sent by an Xmodem file
-     * sender
-     * @param output a stream to sent bytes to an Xmodem file sender
+     * receiver
+     * @param output a stream to sent bytes to an Xmodem file receiver
      * @param filename the file to write the data to
      * @throws IllegalArgumentException if filename already exists
      */
@@ -116,22 +121,235 @@ public class XmodemSender implements Runnable {
     }
 
     /**
-     * Perform a file download using the Xmodem protocol.  Any exceptions
+     * Perform a file upload using the Xmodem protocol.  Any exceptions
      * thrown will be emitted to System.err.
      */
     public void run() {
         try {
-            transferFile();
+            uploadFile();
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
+    /**
+     * Read the requested transfer type and downgrade accordingly.  Note that
+     * EOFException will not be caught here.
+     *
+     * @param input a stream that receives bytes sent by an Xmodem file
+     * receiver
+     * @param output a stream to sent bytes to an Xmodem file receiver
+     * @throws IOException if a java.io operation throws
+     */
+    private void startTransfer(final InputStream input,
+        final OutputStream output) throws IOException {
+
+        int flavorType = -1;
+        int timeoutCount = 0;
+
+        while (cancel == false) {
+
+            try {
+
+                // Get the requested transfer type from the receiver.
+                flavorType = input.read();
+
+                if (DEBUG) {
+                    System.out.printf("Flavor: 0x%02x '%c'\n", flavorType,
+                        flavorType);
+                }
+
+                if (flavorType == session.NAK) {
+                    // Vanilla Xmodem - doesn't matter what we think it is.
+                    // Downgrade if needed, but send the first packet.
+                    if (session.getFlavor() != XmodemSession.Flavor.VANILLA) {
+                        session.addErrorMessage("DOWNGRADE TO VANILLA XMODEM");
+                        session.setFlavor(XmodemSession.Flavor.VANILLA);
+                    }
+                } else if (flavorType == 'C') {
+                    if ((session.getFlavor() != XmodemSession.Flavor.CRC) &&
+                        (session.getFlavor() != XmodemSession.Flavor.X_1K)
+                    ) {
+                        // They have asked for CRC, but we were specified
+                        // with something else.  If we were specified with
+                        // vanilla, stay on that.  Otherwise, default to CRC.
+                        if (session.getFlavor() == XmodemSession.Flavor.VANILLA) {
+                            // Wait for the receiver to fallback to vanilla.
+                            continue;
+                        } else {
+                            // Downgrade to CRC and send the first packet.
+                            session.addErrorMessage("DOWNGRADE TO XMODEM-CRC");
+                            session.setFlavor(XmodemSession.Flavor.CRC);
+                        }
+                    }
+                } else if (flavorType == 'G') {
+                    if (session.getFlavor() != XmodemSession.Flavor.X_1K_G) {
+                        // They have asked for 1K/G, but we were specified
+                        // with something else.  Wait for the receiver to
+                        // fallback to something else.
+                        continue;
+                    }
+                } else {
+                    // We don't know what this is.  Wait for the receiver to
+                    // try again with something we know.
+                    continue;
+                }
+
+            } catch (ReadTimeoutException e) {
+                session.timeout(output);
+                continue;
+            }
+
+            // At this point, we have flavorType set to one of three values:
+            //
+            // 1. NAK - We should be on Vanilla Xmodem.
+            // 2. 'C' - We should be on CRC or 1K.
+            // 3. 'G' - We should be on 1K/G.
+            if (flavorType == session.NAK) {
+                assert (session.getFlavor() == XmodemSession.Flavor.VANILLA);
+            }
+            if (flavorType == 'C') {
+                assert ((session.getFlavor() == XmodemSession.Flavor.CRC) ||
+                    (session.getFlavor() == XmodemSession.Flavor.X_1K));
+            }
+            if (flavorType == 'G') {
+                assert (session.getFlavor() == XmodemSession.Flavor.X_1K_G);
+            }
+            break;
+
+        } // while (cancel == false)
+
+    }
 
     /**
-     * Perform a file download using the Xmodem protocol.
+     * Send the next data block to the remote side.  Note that EOFException
+     * will not be caught here.
+     *
+     * @param input a stream that receives bytes sent by an Xmodem file
+     * receiver
+     * @param output a stream to sent bytes to an Xmodem file receiver
+     * @param fileInput a stream that can read bytes from the local file
+     * @return true if the transfer should keep going, false if the file is
+     * at EOF.
+     * @throws IOException if a java.io operation throws
      */
-    public void transferFile() throws IOException {
+    private boolean sendNextBlock(final InputStream input,
+        final OutputStream output,
+        final InputStream fileInput) throws IOException {
+
+        // If true, definitely read data from the file.  If false, we are
+        // re-trying the last sent block.
+        boolean loadBlock = true;
+
+        byte [] data = null;
+
+        while (cancel == false) {
+
+            try {
+
+                if (DEBUG) {
+                    System.out.printf("SEQ: 0x%02x %d\n",
+                        session.sequenceNumber, session.sequenceNumber);
+                }
+
+                // Send the next data packet, wait for ACK.
+                if (loadBlock == true) {
+                    data = session.readFileBlock(fileInput);
+                    if (DEBUG) {
+                        System.out.printf("Read %d bytes from file\n",
+                            (data == null ? -1 : data.length));
+                    }
+                }
+
+                if (data == null) {
+                    return false;
+                }
+
+                // Got a file block, send it.
+                if (data.length == 128) {
+                    output.write(session.SOH);
+                } else {
+                    output.write(session.STX);
+                }
+                output.write(session.sequenceNumber % 256);
+                output.write((255 - session.sequenceNumber) % 256);
+                output.write(data);
+                session.writeChecksum(output, data);
+
+                int ackByte = input.read();
+                if (ackByte == session.ACK) {
+                    if (DEBUG) {
+                        System.out.println("ACK received");
+                    }
+                    // All good, increment sequence and set to read the next
+                    // block.
+                    session.sequenceNumber++;
+                    loadBlock = true;
+                    session.consecutiveErrors = 0;
+
+                    // Update stats
+                    synchronized (session) {
+                        file.blocksTransferred      += 1;
+                        file.blocksTotal            += 1;
+                        file.bytesTransferred       += data.length;
+                        file.bytesTotal             += data.length;
+                        session.blocksTransferred   += 1;
+                        session.blocksTotal         += 1;
+                        session.bytesTransferred    += data.length;
+                        session.bytesTotal          += data.length;
+                    }
+
+                } else if (ackByte == session.CAN) {
+                    if (DEBUG) {
+                        System.out.println("*** CAN ***");
+                    }
+
+                    // Receiver has cancelled.
+                    session.addErrorMessage("TRANSFER CANCELLED BY RECEIVER");
+                    session.abort(output);
+                    fileInput.close();
+                    // cancel is now true, so return true to break the outer
+                    // loop.
+                    return true;
+                } else {
+                    if (DEBUG) {
+                        System.out.println("! NAK " + session.bytesTransferred);
+                    }
+
+                    session.consecutiveErrors++;
+                    if (session.consecutiveErrors == 10) {
+                        // Cancel this transfer.
+                        session.abort(output);
+
+                        // cancel is now true, so return true to break the
+                        // outer loop.
+                        return true;
+                    }
+
+                    // We either got NAK or something we don't expect.
+                    // Resend the block.
+                    loadBlock = false;
+                }
+
+            } catch (ReadTimeoutException e) {
+                session.timeout(output);
+
+                // Send the packet again.
+                continue;
+            }
+
+        } // while (cancel == false)
+
+        // We can send another block.
+        return true;
+    }
+
+    /**
+     * Perform a file upload using the Xmodem protocol.
+     *
+     * @throws IOException if a java.io operation throws
+     */
+    public void uploadFile() throws IOException {
         // Xmodem can be done as a state machine, but is actually much easier
         // to do as a direct procedure:
         //
@@ -151,11 +369,43 @@ public class XmodemSender implements Runnable {
             session.startTime = System.currentTimeMillis();
         }
 
-        FileInputStream fileInput = new FileInputStream(file.localFile);
+        InputStream fileInput = null;
 
-        while (cancel == false) {
-            // TODO
+        try {
+
+            // Get the transfer begun.  This may end up changing the Xmodem
+            // flavor.
+            startTransfer(input, output);
+
+            // Open the file.
+            fileInput = file.localFile.getInputStream();
+
+            // Send the file blocks.
+            while (cancel == false) {
+                if (sendNextBlock(input, output, fileInput) == false) {
+                    // We are at EOF, send the EOT and be done.
+                    output.write(session.EOT);
+                    output.flush();
+                    break;
+                }
+            } // while (cancel == false)
+
+            // Transfer is complete!
+
+        } catch (EOFException e) {
+            if (DEBUG) {
+                System.out.println("UNEXPECTED END OF TRANSMISSION");
+            }
+            session.addErrorMessage("UNEXPECTED END OF TRANSMISSION");
+            session.abort(output);
+            if (fileInput != null) {
+                fileInput.close();
+            }
+            return;
         }
+
+        // All done.
+        fileInput.close();
 
         // Transfer has ended
         synchronized (session) {

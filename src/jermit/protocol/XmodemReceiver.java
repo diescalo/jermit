@@ -29,12 +29,13 @@
 package jermit.protocol;
 
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 
 import jermit.io.EOFInputStream;
+import jermit.io.LocalFile;
+import jermit.io.LocalFileInterface;
 import jermit.io.ReadTimeoutException;
 import jermit.io.TimeoutInputStream;
 
@@ -88,8 +89,11 @@ public class XmodemReceiver implements Runnable {
             throw new IllegalArgumentException(filename + " already exists, " +
                 "will not overwrite");
         }
+
+        LocalFile localFile = new LocalFile(file);
+
         this.output     = output;
-        session         = new XmodemSession(flavor, file, true);
+        session         = new XmodemSession(flavor, localFile, true);
         if (input instanceof TimeoutInputStream) {
             // Someone has already set the timeout.  Keep their value.
             this.input  = new EOFInputStream(input);
@@ -121,7 +125,7 @@ public class XmodemReceiver implements Runnable {
      */
     public void run() {
         try {
-            transferFile();
+            downloadFile();
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -130,7 +134,7 @@ public class XmodemReceiver implements Runnable {
     /**
      * Perform a file download using the Xmodem protocol.
      */
-    public void transferFile() throws IOException {
+    public void downloadFile() throws IOException {
         // Xmodem can be done as a state machine, but is actually much easier
         // to do as a direct procedure:
         //
@@ -150,7 +154,7 @@ public class XmodemReceiver implements Runnable {
             session.startTime = System.currentTimeMillis();
         }
 
-        FileOutputStream fileOutput = new FileOutputStream(file.localFile);
+        OutputStream fileOutput = file.localFile.getOutputStream();
 
         if (DEBUG) {
             System.out.println("Sending NCG...");
@@ -182,7 +186,11 @@ public class XmodemReceiver implements Runnable {
                 // This is EOT.  Close the file first, then trim the
                 // trailing CPM EOF's (0x1A) in it.
                 fileOutput.close();
-                session.trimEOF(file.localFile);
+                if (file.localFile instanceof LocalFile) {
+                    // We know that this is wrapping a file, hence we can
+                    // trimEOF() it.
+                    session.trimEOF(file.localFile.getLocalName());
+                }
                 break;
             }
 

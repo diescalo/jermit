@@ -43,20 +43,44 @@ public final class TestAll {
     public static void main(final String [] args) {
         try {
             System.out.println("--- Executing all Jermit tests... ---");
-            (new Xmodem1()).doTest();
+
             /*
+             * Downloads - clean line
+             */
             (new Xmodem1()).doTest();
             (new Xmodem2()).doTest();
             (new Xmodem3()).doTest();
+
+            if (false) {
+
             (new Xmodem4()).doTest();
             (new Xmodem5()).doTest();
-            */
-            // (new Xmodem6()).doTest();
+            (new Xmodem6()).doTest();
+
+            }
+
+            /*
+             * Uploads - clean line
+             */
+            (new Xmodem7()).doTest();
+            (new Xmodem9()).doTest();
+            (new Xmodem10()).doTest();
+
+            if (false) {
 
             /*
             // This one uses throttled input streams, don't run it normally.
-            (new Xmodem7()).doTest();
+            (new Xmodem8()).doTest();
              */
+
+            /*
+             * Noisy transfers
+             */
+            (new Xmodem11()).doTest();
+            (new Xmodem12()).doTest();
+
+            }
+
         } catch (Throwable t) {
             t.printStackTrace();
         }

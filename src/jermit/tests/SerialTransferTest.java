@@ -76,6 +76,57 @@ public abstract class SerialTransferTest implements Runnable {
     }
 
     /**
+     * Compare the data contents of two files, ignoring any amount of
+     * trailing ^Z's.
+     *
+     * @param file1 the first file to compare
+     * @param file2 the second file to compare
+     * @return true if the files have the same content and length
+     * @throws IOException if a java.io operation throws
+     */
+    public boolean compareFilesAscii(File file1, File file2)
+        throws IOException {
+
+        InputStream in1 = new FileInputStream(file1);
+        InputStream in2 = new FileInputStream(file2);
+        for (;;) {
+            int ch1 = in1.read();
+            int ch2 = in2.read();
+
+            // System.out.printf("ch1: 0x%02x ch2: 0x%02x\n", ch1, ch2);
+
+            if ((ch1 == -1) && (ch2 == 0x1A)) {
+                // This is OK: in1 is at EOF, in2 has a terminating ^Z
+                break;
+            }
+            if ((ch1 == 0x1A) && (ch2 == -1)) {
+                // This is OK: in1 has a terminating ^Z, in2 is at EOF
+                break;
+            }
+
+            if (ch1 != ch2) {
+                /*
+                System.out.printf("compareFilesAscii(): false ");
+                System.out.printf("--> ch1: 0x%02x ch2: 0x%02x\n", ch1, ch2);
+                 */
+                in1.close();
+                in2.close();
+                return false;
+            }
+            if (ch1 == 0x1A) {
+                // Both files have encountered ^Z, stop the comparison.
+                break;
+            }
+        }
+
+        // System.out.println("compareFilesAscii(): true");
+
+        in1.close();
+        in2.close();
+        return true;
+    }
+
+    /**
      * Compare the data contents of two files.
      *
      * @param file1 the first file to compare

@@ -35,16 +35,18 @@ import jermit.protocol.XmodemReceiver;
 import jermit.protocol.XmodemSession;
 import jermit.tests.SerialTransferTest;
 import jermit.tests.TestFailedException;
+import jermit.tests.io.NoisyInputStream;
+import jermit.tests.io.NoisyOutputStream;
 
 /**
- * Test a basic binary file Xmodem file transfer.
+ * Test a basic binary file Xmodem file transfer with 16-bit CRC.
  */
-public final class Xmodem3 extends SerialTransferTest {
+public final class Xmodem11 extends SerialTransferTest {
 
     /**
      * Public constructor.
      */
-    public Xmodem3() {
+    public Xmodem11() {
     }
 
     /**
@@ -52,7 +54,7 @@ public final class Xmodem3 extends SerialTransferTest {
      */
     @Override
     public void doTest() throws IOException, TestFailedException {
-        System.out.printf("Xmodem3: binary file download - VANILLA\n");
+        System.out.printf("Xmodem11: binary file download NOISY - CRC\n");
 
         // Process:
         //
@@ -73,8 +75,9 @@ public final class Xmodem3 extends SerialTransferTest {
         Process sx = sxb.start();
 
         // Allow overwrite of destination file, because we just created it.
-        XmodemReceiver rx = new XmodemReceiver(XmodemSession.Flavor.VANILLA,
-            sx.getInputStream(), sx.getOutputStream(),
+        XmodemReceiver rx = new XmodemReceiver(XmodemSession.Flavor.CRC,
+            new NoisyInputStream(sx.getInputStream()),
+            new NoisyOutputStream(sx.getOutputStream()),
             destination.getPath(), true);
 
         rx.run();
@@ -91,7 +94,7 @@ public final class Xmodem3 extends SerialTransferTest {
      */
     public static void main(final String [] args) {
         try {
-            Xmodem3 test = new Xmodem3();
+            Xmodem11 test = new Xmodem11();
             test.doTest();
         } catch (Throwable t) {
             t.printStackTrace();

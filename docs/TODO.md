@@ -1,17 +1,9 @@
 Jermit TODO List
 ================
 
-NoisyInputStream
-NoisyOutputStream
-  Use in tests
-
-
-XmodemSession:
-  Check for consecutive errors: 10 cancels transfer
-
 
 XmodemReceiver:
-  1K-G
+  1K-G - looks like sx is hanging.  Did Qodem see that?
   Error handling:
     Can't open file
     File fails to write
@@ -24,8 +16,6 @@ XmodemReceiver:
 
   test on multiple threads
 
-  subclass on SerialFileReceiver
-
 XmodemSender:
   Error handling:
     Can't open file
@@ -34,8 +24,6 @@ XmodemSender:
   cancelTransfer():
     - send CAN
 
-  subclass on SerialFileSender
-
 
 bin/jermit
   - how does one package a nicer script for Windows?
@@ -43,7 +31,6 @@ bin/jermit
 
 
 Ymodem:
-  YmodemSession
   YmodemReceiver
   YmodemSender
 

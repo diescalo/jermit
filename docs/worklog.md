@@ -1,3 +1,16 @@
+January 12, 2017
+
+Xmodem send is working now, and refactored to look reasonably nice.
+Broke the functions up so that we don't have nested
+try/while/try/while type loops.  Really enjoying the tests being ready
+to just crank out and go with.
+
+Let's commit this bit here.
+
+Next up is either Ymodem or getting one of the UI's functional.  I
+need to see if there is an easier way to test an external protocol's
+UI than running minicom across a null modem cable.
+
 January 8, 2017
 
 Refactoring already.  :-) I added a ThrottledInputStream and

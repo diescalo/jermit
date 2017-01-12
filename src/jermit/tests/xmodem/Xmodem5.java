@@ -52,7 +52,7 @@ public final class Xmodem5 extends SerialTransferTest {
      */
     @Override
     public void doTest() throws IOException, TestFailedException {
-        System.out.printf("Xmodem5: binary file transfer - 1K\n");
+        System.out.printf("Xmodem5: binary file download - 1K\n");
 
         // Process:
         //
@@ -64,16 +64,16 @@ public final class Xmodem5 extends SerialTransferTest {
 
         File source = File.createTempFile("send-xmodem", ".jpg");
         saveResourceToFile("jermit/tests/data/lady-of-shalott.jpg", source);
-        // source.deleteOnExit();
+        source.deleteOnExit();
 
         File destination = File.createTempFile("receive-xmodem", ".jpg");
-        // destination.deleteOnExit();
+        destination.deleteOnExit();
 
         ProcessBuilder sxb = new ProcessBuilder("sx", "--1k", source.getPath());
         Process sx = sxb.start();
 
         // Allow overwrite of destination file, because we just created it.
-        XmodemReceiver rx = new XmodemReceiver(XmodemSession.Flavor.CRC,
+        XmodemReceiver rx = new XmodemReceiver(XmodemSession.Flavor.X_1K,
             sx.getInputStream(), sx.getOutputStream(),
             destination.getPath(), true);
 

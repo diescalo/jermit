@@ -52,7 +52,7 @@ public final class Xmodem1 extends SerialTransferTest implements Runnable {
      */
     @Override
     public void doTest() throws IOException, TestFailedException {
-        System.out.printf("Xmodem1: basic ASCII file transfer\n");
+        System.out.printf("Xmodem1: basic ASCII file download\n");
 
         // Process:
         //
