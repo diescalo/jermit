@@ -169,19 +169,24 @@ public class XmodemSession extends SerialFileTransferSession {
      * Trim the CPM EOF byte (0x1A) from the end of a file.
      *
      * @param filename the name of the file to trim on the local filesystem
-     * @throws IOException if a java.io operation throws
      */
-    public void trimEOF(final String filename) throws IOException {
-        // SetLength() requires the file be open in read-write.
-        RandomAccessFile contents = new RandomAccessFile(filename, "rw");
-        while (contents.length() > 0) {
-            contents.seek(contents.length() - 1);
-            int ch = contents.read();
-            if (ch == 0x1A) {
-                contents.setLength(contents.length() - 1);
-            } else {
-                // Found a non-EOF byte
-                break;
+    public void trimEOF(final String filename) {
+        try {
+            // SetLength() requires the file be open in read-write.
+            RandomAccessFile contents = new RandomAccessFile(filename, "rw");
+            while (contents.length() > 0) {
+                contents.seek(contents.length() - 1);
+                int ch = contents.read();
+                if (ch == 0x1A) {
+                    contents.setLength(contents.length() - 1);
+                } else {
+                    // Found a non-EOF byte
+                    break;
+                }
+            }
+        } catch (IOException e) {
+            if (DEBUG) {
+                e.printStackTrace();
             }
         }
     }
@@ -266,8 +271,7 @@ public class XmodemSession extends SerialFileTransferSession {
      * @param output the stream to write to
      * @throws IOException if a java.io operation throws
      */
-    synchronized void abort(final OutputStream output)
-        throws IOException {
+    synchronized void abort(final OutputStream output) {
 
         if (DEBUG) {
             System.out.println("ABORT");
@@ -275,9 +279,16 @@ public class XmodemSession extends SerialFileTransferSession {
 
         state = State.ABORT;
 
-        // Send CAN
-        output.write(CAN);
-        output.flush();
+        // Send CAN, squashing any errors
+        try {
+            output.write(CAN);
+            output.flush();
+        } catch (IOException e) {
+            // SQUASH
+            if (DEBUG) {
+                e.printStackTrace();
+            }
+        }
     }
 
     /**
@@ -475,6 +486,9 @@ public class XmodemSession extends SerialFileTransferSession {
 
             } catch (EOFException e) {
                 if (DEBUG) {
+                    e.printStackTrace();
+                }
+                if (DEBUG) {
                     System.out.println("UNEXPECTED END OF TRANSMISSION");
                 }
                 addErrorMessage("UNEXPECTED END OF TRANSMISSION");
@@ -506,29 +520,40 @@ public class XmodemSession extends SerialFileTransferSession {
      * Send the appropriate "NAK/ACK" character for this flavor of Xmodem.
      *
      * @param output the stream to write to
-     * @throws IOException if a java.io operation throws
+     * @return true if successful
      */
-    public void sendNCG(final OutputStream output) throws IOException {
-        switch (flavor) {
-        case VANILLA:
-        case RELAXED:
-            // NAK
-            output.write(NAK);
-            break;
-        case CRC:
-        case X_1K:
-            // 'C' - 0x43
-            output.write('C');
-            break;
-        case X_1K_G:
-            // 'G' - 0x47
-            if (DEBUG) {
-                System.out.println("Requested -G");
+    public boolean sendNCG(final OutputStream output) {
+        try {
+            switch (flavor) {
+            case VANILLA:
+            case RELAXED:
+                // NAK
+                output.write(NAK);
+                break;
+            case CRC:
+            case X_1K:
+                // 'C' - 0x43
+                output.write('C');
+                break;
+            case X_1K_G:
+                // 'G' - 0x47
+                if (DEBUG) {
+                    System.out.println("Requested -G");
+                }
+                output.write('G');
+                break;
             }
-            output.write('G');
-            break;
+            output.flush();
+            return true;
+        } catch (IOException e) {
+            // We failed to get the byte out, all done.
+            if (DEBUG) {
+                e.printStackTrace();
+            }
+            addErrorMessage("UNABLE TO SEND STARTING NAK");
+            abort(output);
+            return false;
         }
-        output.flush();
     }
 
     /**
@@ -650,7 +675,8 @@ public class XmodemSession extends SerialFileTransferSession {
      * was a download.  If false, delete the file.
      */
     public void cancelTransfer(boolean keepPartial) {
-        // TODO
+        // TODO: let upload()/download() know to both cancel and keep
+        // partial.
     }
 
     /**

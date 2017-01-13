@@ -111,11 +111,20 @@ public class FileInfo {
     }
 
     /**
-     * Get the remote system filename.
+     * Get the local system file name.
      *
-     * @return the remote filename
+     * @return the local file name
      */
-    public String getRemoteFilename() {
+    public String getLocalName() {
+        return localFile.getLocalName();
+    }
+
+    /**
+     * Get the remote system file name.
+     *
+     * @return the remote file name
+     */
+    public String getRemoteName() {
         return remoteFilename;
     }
 

@@ -124,17 +124,13 @@ public class XmodemReceiver implements Runnable {
      * thrown will be emitted to System.err.
      */
     public void run() {
-        try {
-            downloadFile();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        downloadFile();
     }
 
     /**
      * Perform a file download using the Xmodem protocol.
      */
-    public void downloadFile() throws IOException {
+    public void downloadFile() {
         // Xmodem can be done as a state machine, but is actually much easier
         // to do as a direct procedure:
         //
@@ -154,13 +150,26 @@ public class XmodemReceiver implements Runnable {
             session.startTime = System.currentTimeMillis();
         }
 
-        OutputStream fileOutput = file.localFile.getOutputStream();
+        OutputStream fileOutput = null;
+        try {
+            fileOutput = file.localFile.getOutputStream();
+        } catch (IOException e) {
+            if (DEBUG) {
+                e.printStackTrace();
+            }
+            session.addErrorMessage("UNABLE TO WRITE TO FILE " +
+                file.getLocalName());
+            session.abort(output);
+            return;
+        }
 
         if (DEBUG) {
             System.out.println("Sending NCG...");
         }
 
-        session.sendNCG(output);
+        if (session.sendNCG(output) == false) {
+            cancel = true;
+        }
 
         while (cancel == false) {
 
@@ -168,7 +177,17 @@ public class XmodemReceiver implements Runnable {
                 System.out.println("Calling getPacket()");
             }
 
-            byte [] data = session.getPacket(input, output);
+            byte [] data = null;
+            try {
+                data = session.getPacket(input, output);
+            } catch (IOException e) {
+                if (DEBUG) {
+                    e.printStackTrace();
+                }
+                session.addErrorMessage("NETWORK I/O ERROR");
+                session.abort(output);
+                break;
+            }
 
             if (DEBUG) {
                 System.out.println("Read " + data.length + " bytes");
@@ -177,7 +196,6 @@ public class XmodemReceiver implements Runnable {
             synchronized (session) {
                 if (session.state == SerialFileTransferSession.State.ABORT) {
                     // Transfer was aborted for whatever reason.
-                    fileOutput.close();
                     break;
                 }
             }
@@ -185,7 +203,6 @@ public class XmodemReceiver implements Runnable {
             if (data.length == 0) {
                 // This is EOT.  Close the file first, then trim the
                 // trailing CPM EOF's (0x1A) in it.
-                fileOutput.close();
                 if (file.localFile instanceof LocalFile) {
                     // We know that this is wrapping a file, hence we can
                     // trimEOF() it.
@@ -194,8 +211,18 @@ public class XmodemReceiver implements Runnable {
                 break;
             }
 
-            // Save data
-            fileOutput.write(data);
+            try {
+                // Save data
+                fileOutput.write(data);
+            } catch (IOException e) {
+                if (DEBUG) {
+                    e.printStackTrace();
+                }
+                session.addErrorMessage("CANNOT WRITE TO FILE " +
+                    file.getLocalName());
+                session.abort(output);
+                break;
+            }
 
             // Update stats
             synchronized (session) {
@@ -209,6 +236,18 @@ public class XmodemReceiver implements Runnable {
                 session.bytesTotal          += data.length;
             }
 
+        } // while (cancel == false)
+
+        if (fileOutput != null) {
+            try {
+                fileOutput.close();
+            } catch (IOException e) {
+                // SQUASH
+                if (DEBUG) {
+                    e.printStackTrace();
+                }
+            }
+            fileOutput = null;
         }
 
         // Transfer has ended

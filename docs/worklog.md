@@ -1,3 +1,18 @@
+January 13, 2017
+
+IT'S FRIDAY THE 13TH!!!  DUH DUH DUUUUH!!
+
+I cleaned up the error handling so that in theory we will have the
+right messages for network I/O error vs file I/O error.  Also stubbed
+in rzsz.Main.  Once I get a basic transfer going it will be much
+faster to add protocols.
+
+Question to ponder: should jermit.rzsz support Kermit?  My initial
+thought is no, that is what jermit.ui.ckermit.CKermit can do.  But
+then again --kermit would be really easy to add, and most of the
+Zmodem options have Kermit analogs.  Hmm, why not?  If people get
+Kermit for "free" when they wanted Zmodem, better off for them.
+
 January 12, 2017
 
 Xmodem send is working now, and refactored to look reasonably nice.

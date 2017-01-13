@@ -1,28 +1,8 @@
 Jermit TODO List
 ================
 
-
-XmodemReceiver:
-  1K-G - looks like sx is hanging.  Did Qodem see that?
-  Error handling:
-    Can't open file
-    File fails to write
-    File fails to truncate
-    Streaming error on -G
-
-  cancelTransfer():
-    - send CAN
-    - keepPartial
-
-  test on multiple threads
-
-XmodemSender:
-  Error handling:
-    Can't open file
-    File fails to read
-
-  cancelTransfer():
-    - send CAN
+ui.rzsz:
+  - Xmodem send
 
 
 bin/jermit

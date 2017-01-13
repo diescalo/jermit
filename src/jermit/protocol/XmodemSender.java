@@ -125,11 +125,7 @@ public class XmodemSender implements Runnable {
      * thrown will be emitted to System.err.
      */
     public void run() {
-        try {
-            uploadFile();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        uploadFile();
     }
 
     /**
@@ -234,7 +230,7 @@ public class XmodemSender implements Runnable {
      * @throws IOException if a java.io operation throws
      */
     private boolean sendNextBlock(final InputStream input,
-        final OutputStream output,
+        final OutputStream output, final FileInfo file,
         final InputStream fileInput) throws IOException {
 
         // If true, definitely read data from the file.  If false, we are
@@ -346,10 +342,8 @@ public class XmodemSender implements Runnable {
 
     /**
      * Perform a file upload using the Xmodem protocol.
-     *
-     * @throws IOException if a java.io operation throws
      */
-    public void uploadFile() throws IOException {
+    public void uploadFile() {
         // Xmodem can be done as a state machine, but is actually much easier
         // to do as a direct procedure:
         //
@@ -377,12 +371,24 @@ public class XmodemSender implements Runnable {
             // flavor.
             startTransfer(input, output);
 
-            // Open the file.
-            fileInput = file.localFile.getInputStream();
+            // Open the file.  Local try/catch to separate the read error
+            // message from the generic network I/O error message.
+            try {
+                fileInput = file.localFile.getInputStream();
+            } catch (IOException e) {
+                if (DEBUG) {
+                    e.printStackTrace();
+                }
+                session.addErrorMessage("UNABLE TO READ FROM FILE " +
+                    file.getLocalName());
+                session.abort(output);
+                return;
+            }
 
             // Send the file blocks.
             while (cancel == false) {
-                if (sendNextBlock(input, output, fileInput) == false) {
+                if (sendNextBlock(input, output, file, fileInput) == false) {
+
                     // We are at EOF, send the EOT and be done.
                     output.write(session.EOT);
                     output.flush();
@@ -398,14 +404,28 @@ public class XmodemSender implements Runnable {
             }
             session.addErrorMessage("UNEXPECTED END OF TRANSMISSION");
             session.abort(output);
-            if (fileInput != null) {
-                fileInput.close();
+            // Fall through to the fileInput.close().
+        } catch (IOException e) {
+            if (DEBUG) {
+                e.printStackTrace();
             }
-            return;
+            session.addErrorMessage("NETWORK I/O ERROR");
+            session.abort(output);
+            // Fall through to the fileInput.close().
         }
 
         // All done.
-        fileInput.close();
+        if (fileInput != null) {
+            try {
+                fileInput.close();
+            } catch (IOException e) {
+                // SQUASH
+                if (DEBUG) {
+                    e.printStackTrace();
+                }
+            }
+            fileInput = null;
+        }
 
         // Transfer has ended
         synchronized (session) {
@@ -428,7 +448,6 @@ public class XmodemSender implements Runnable {
      * was a download.  If false, delete the file.
      */
     public void cancelTransfer(boolean keepPartial) {
-        // TODO: send CAN
         synchronized (session) {
             session.cancelTransfer(keepPartial);
             cancel = true;
