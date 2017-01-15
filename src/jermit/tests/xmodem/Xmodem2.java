@@ -41,7 +41,7 @@ import jermit.tests.TestFailedException;
  * two files will be the same except that the destination will be one byte
  * shorter: the source contained an EOF (0x1A).
  */
-public final class Xmodem2 extends SerialTransferTest {
+public class Xmodem2 extends SerialTransferTest {
 
     /**
      * Public constructor.

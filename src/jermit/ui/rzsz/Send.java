@@ -28,27 +28,20 @@
  */
 package jermit.ui.rzsz;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.io.IOException;
 import java.util.LinkedList;
 
 import jermit.protocol.FileInfo;
 import jermit.protocol.SerialFileTransferSession;
 import jermit.protocol.XmodemSender;
 import jermit.protocol.XmodemSession;
+import jermit.ui.posix.Stty;
 
 /**
  * This class provides a main driver that behaves similarly to rzsz.  It is
  * intended to be a drop-in replacement for (l)rzsz for use by other
  * programs.
  */
-public final class Send {
-
-    /**
-     * This version of Jermit.
-     */
-    private static final String VERSION = "0.0.1";
+public class Send {
 
     /**
      * The available protocols.
@@ -84,72 +77,6 @@ public final class Send {
      */
     private void processTwoArgs(final String arg, final String value) {
         // TODO
-    }
-
-    /**
-     * Call 'stty' to set cooked mode.
-     *
-     * <p>Actually executes '/bin/sh -c stty sane cooked &lt; /dev/tty'
-     */
-    private void sttyCooked() {
-        doStty(false);
-    }
-
-    /**
-     * Call 'stty' to set raw mode.
-     *
-     * <p>Actually executes '/bin/sh -c stty -ignbrk -brkint -parmrk -istrip
-     * -inlcr -igncr -icrnl -ixon -opost -echo -echonl -icanon -isig -iexten
-     * -parenb cs8 min 1 &lt; /dev/tty'
-     */
-    private void sttyRaw() {
-        doStty(true);
-    }
-
-    /**
-     * Call 'stty' to set raw or cooked mode.
-     *
-     * @param mode if true, set raw mode, otherwise set cooked mode
-     */
-    private void doStty(final boolean mode) {
-        String [] cmdRaw = {
-            "/bin/sh", "-c", "stty -ignbrk -brkint -parmrk -istrip -inlcr -igncr -icrnl -ixon -opost -echo -echonl -icanon -isig -iexten -parenb cs8 min 1 < /dev/tty"
-        };
-        String [] cmdCooked = {
-            "/bin/sh", "-c", "stty sane cooked < /dev/tty"
-        };
-        try {
-            Process process;
-            if (mode) {
-                process = Runtime.getRuntime().exec(cmdRaw);
-            } else {
-                process = Runtime.getRuntime().exec(cmdCooked);
-            }
-            BufferedReader in = new BufferedReader(new InputStreamReader(process.getInputStream(), "UTF-8"));
-            String line = in.readLine();
-            if ((line != null) && (line.length() > 0)) {
-                System.err.println("WEIRD?! Normal output from stty: " + line);
-            }
-            while (true) {
-                BufferedReader err = new BufferedReader(new InputStreamReader(process.getErrorStream(), "UTF-8"));
-                line = err.readLine();
-                if ((line != null) && (line.length() > 0)) {
-                    System.err.println("Error output from stty: " + line);
-                }
-                try {
-                    process.waitFor();
-                    break;
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-            }
-            int rc = process.exitValue();
-            if (rc != 0) {
-                System.err.println("stty returned error code: " + rc);
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
     }
 
     /**
@@ -196,7 +123,7 @@ public final class Send {
         }
 
         // We need System.in/out to behave like a dumb file.
-        sttyRaw();
+        Stty.setRaw();
 
         // Now spin up the session status thread and sending thread and wait
         // for them both to end.
@@ -218,7 +145,7 @@ public final class Send {
         }
 
         // Blindly restore System.in/out.
-        sttyCooked();
+        Stty.setCooked();
 
         /*
          * All done, now choose an exit value:
@@ -248,7 +175,7 @@ public final class Send {
      * Show the usage screen.
      */
     private void showUsage() {
-        System.out.println("jermit version " + VERSION);
+        System.out.println("jermit version " + jermit.Version.VERSION);
         System.out.println("Usage: {sz|sb|sx} [options] file ...");
         System.out.println("Send file(s) with ZMODEM/YMODEM/XMODEM/KERMIT protocol");
         System.out.println("    (X) = option applies to XMODEM only");
@@ -399,7 +326,7 @@ public final class Send {
 
         // One-agument parameters honored.
         if (arg.equals("--version")) {
-            System.out.println("jermit " + VERSION);
+            System.out.println("jermit " + jermit.Version.VERSION);
             System.exit(0);
         } else if (arg.equals("-+") || arg.equals("--append")) {
             // Instruct the receiver to append transmitted data to an
@@ -425,6 +352,9 @@ public final class Send {
             // the default 128 byte blocks.  1024 byte packets speed file
             // transfers at high bit rates.
             blockSize = 1024;
+        } else if (arg.equals("--kermit")) {
+            // use KERMIT protocol.
+            protocol = Protocol.KERMIT;
         } else if (arg.equals("-n") || arg.equals("--newer")) {
             // (ZMODEM) Send each file if destination file does not exist.
             // Overwrite destination file if source file is newer than the

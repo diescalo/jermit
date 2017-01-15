@@ -41,7 +41,7 @@ import jermit.tests.TestFailedException;
 /**
  * Test a basic Xmodem file transfer.
  */
-public final class Xmodem8 extends SerialTransferTest implements Runnable {
+public class Xmodem8 extends SerialTransferTest implements Runnable {
 
     /**
      * Public constructor.

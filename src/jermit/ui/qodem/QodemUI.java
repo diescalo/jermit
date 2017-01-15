@@ -26,18 +26,25 @@
  * @author Kevin Lamonte [kevin.lamonte@gmail.com]
  * @version 1
  */
-package jermit.ui.rzsz;
+package jermit.ui.qodem;
 
 import java.util.List;
 
-import jermit.protocol.SerialFileTransferMessage;
+import jermit.protocol.FileInfo;
 import jermit.protocol.SerialFileTransferSession;
+import jermit.protocol.XmodemSender;
+import jermit.protocol.XmodemSession;
+
+import jermit.ui.qodem.jexer.bits.Color;
+import jermit.ui.qodem.jexer.bits.CellAttributes;
+import jermit.ui.qodem.jexer.event.TInputEvent;
+import jermit.ui.qodem.jexer.io.SwingScreen;
+import jermit.ui.qodem.jexer.io.SwingTerminal;
 
 /**
- * SerialSessionLogger emits messages to System.err as a file transfer
- * progresses.
+ * This class displays a progress bar screen similar to Qodem.
  */
-public class SerialSessionLogger implements Runnable {
+public class QodemUI implements Runnable {
 
     /**
      * The file transfer session.
@@ -45,34 +52,87 @@ public class SerialSessionLogger implements Runnable {
     private SerialFileTransferSession session;
 
     /**
+     * Input events are processed by this Terminal.
+     */
+    private SwingTerminal terminal;
+
+    /**
+     * Screen displays characters.
+     */
+    private SwingScreen screen;
+
+    /**
      * Public constructor.
      *
      * @param session the file transfer session
      */
-    public SerialSessionLogger(final SerialFileTransferSession session) {
+    public QodemUI(final SerialFileTransferSession session) {
         this.session = session;
+
+        // Create a screen
+        screen = new SwingScreen();
+
+        // Create the Swing event listeners
+        terminal = new SwingTerminal(this, screen);
     }
 
     /**
-     * Emit a message to System.err.
+     * Get keyboard, mouse, and screen resize events.
      *
-     * @param message the message to emit
+     * @param queue list to append new events to
      */
-    private void emitMessage(final SerialFileTransferMessage message) {
-        // TODO: timestamp, info/error, etc.
-        // Make it match rzsz if possible.
-        System.err.println(message.getMessage());
+    public void getEvents(final List<TInputEvent> queue) {
+        if (terminal.hasEvents()) {
+            terminal.getEvents(queue);
+        }
     }
-    
+
     /**
-     * Monitor the file transfer and display messages as they are added to
-     * the session.
+     * Render the progress dialog.
+     */
+    private void drawScreen() {
+        CellAttributes border = new CellAttributes();
+        border.setForeColor(Color.BLUE);
+        border.setBackColor(Color.BLACK);
+        border.setBold(true);
+
+        CellAttributes window = new CellAttributes();
+        window.setForeColor(Color.BLACK);
+        window.setBackColor(Color.BLUE);
+
+        screen.drawBox(0, 0, screen.getWidth(), screen.getHeight(),
+            border, window, 2, false);
+
+        String title = "Upload Status";
+        if (session.isDownload()) {
+            title = "Download Status";
+        }
+
+        int titleX = screen.getWidth() - title.length() - 2;
+        if (titleX < 0) {
+            titleX = 0;
+        } else {
+            titleX /= 2;
+        }
+        screen.putStringXY(titleX, 0, " " + title + " ", border);
+        
+        
+
+        
+
+        screen.flushPhysical();
+    }
+
+    /**
+     * Monitor the file transfer, updating the progress bar and other
+     * statistics as they are modified by the session.
      */
     public void run() {
         try {
-            // Emit messages as they are recorded.
-            int messageCount = 0;
             for (;;) {
+
+                drawScreen();
+
                 synchronized (session) {
                     SerialFileTransferSession.State state = session.getState();
                     if ((state == SerialFileTransferSession.State.ABORT) ||
@@ -91,18 +151,9 @@ public class SerialSessionLogger implements Runnable {
                 } catch (InterruptedException e) {
                     // SQUASH
                 }
-
-                synchronized (session) {
-                    if (session.messageCount() > messageCount) {
-                        for (int i = messageCount; i < session.messageCount();
-                             i++) {
-                            emitMessage(session.getMessage(i));
-                            messageCount++;
-                        }
-                    }
-                }
-
             } // for (;;)
+
+            screen.shutdown();
 
         } catch (Throwable t) {
             t.printStackTrace();

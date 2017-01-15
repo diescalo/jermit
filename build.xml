@@ -34,6 +34,7 @@
   <!-- <property name="build.compiler" value="gcj"/> -->
 
   <property name="src.dir"       value="src"/>
+  <property name="resources.dir" value="resources"/>
   <property name="build.dir"     value="build"/>
   <property name="classes.dir"   value="${build.dir}/classes"/>
   <property name="jar.dir"       value="${build.dir}/jar"/>
@@ -56,11 +57,11 @@
   <target name="compile">
     <mkdir dir="${classes.dir}"/>
     <javac srcdir="${src.dir}" destdir="${classes.dir}"
-	   classpathref="project.classpath"
-	   includeantruntime="false"
-	   debug="on"
-	   debuglevel="lines,vars,source"
-	   >
+           classpathref="project.classpath"
+           includeantruntime="false"
+           debug="on"
+           debuglevel="lines,vars,source"
+           >
       <exclude name="**/tests/**"/>
     </javac>
   </target>
@@ -68,25 +69,27 @@
   <target name="compile-tests">
     <mkdir dir="${classes.dir}"/>
     <javac srcdir="${src.dir}" destdir="${classes.dir}"
-	   classpathref="project.classpath"
-	   includeantruntime="false"
-	   debug="on"
-	   debuglevel="lines,vars,source"
-	   >
+           classpathref="project.classpath"
+           includeantruntime="false"
+           debug="on"
+           debuglevel="lines,vars,source"
+           >
     </javac>
   </target>
 
   <target name="jar" depends="compile">
     <mkdir dir="${jar.dir}"/>
     <jar destfile="${jar.dir}/${ant.project.name}.jar"
-	 basedir="${classes.dir}">
+         basedir="${classes.dir}">
+
+      <fileset dir="${resources.dir}"/>
 
       <!-- Include source by default. -->
       <fileset dir="${src.dir}">
         <exclude name="**/tests/**"/>
       </fileset>
       <manifest>
-	<attribute name="Main-Class" value="jermit.Main"/>
+        <attribute name="Main-Class" value="jermit.ui.qodem.Jermit"/>
       </manifest>
     </jar>
   </target>
@@ -94,11 +97,14 @@
   <target name="tests" depends="compile-tests">
     <mkdir dir="${tests-jar.dir}"/>
     <jar destfile="${tests-jar.dir}/${ant.project.name}-tests.jar"
-	 basedir="${classes.dir}">
+         basedir="${classes.dir}">
+
+      <fileset dir="${resources.dir}"/>
+
       <!-- Include source by default. -->
       <fileset dir="${src.dir}"/>
       <manifest>
-	<attribute name="Main-Class" value="jermit.tests.TestAll"/>
+        <attribute name="Main-Class" value="jermit.tests.TestAll"/>
       </manifest>
     </jar>
   </target>
@@ -111,33 +117,33 @@
 
   <target name="docs" depends="jar">
     <javadoc
-	destdir="${apidocs.dir}"
-	author="true"
-	version="true"
-	use="true"
-	classpathref="project.classpath"
-	access="protected"
-	windowtitle="Jermit - API docs">
+        destdir="${apidocs.dir}"
+        author="true"
+        version="true"
+        use="true"
+        classpathref="project.classpath"
+        access="protected"
+        windowtitle="Jermit - API docs">
 
       <fileset dir="${src.dir}" defaultexcludes="yes">
-	<include name="jermit/**"/>
+        <include name="jermit/**"/>
         <exclude name="**/tests/**"/>
       </fileset>
 
       <doctitle>
-	<![CDATA[<h1>Jermit</h1>]]>
+        <![CDATA[<h1>Jermit</h1>]]>
       </doctitle>
       <bottom>
-	<![CDATA[<i>Copyright &#169; 2017 Kevin Lamonte. Licensed MIT.</i>]]>
+        <![CDATA[<i>Copyright &#169; 2017 Kevin Lamonte. Licensed MIT.</i>]]>
       </bottom>
       <!--
-	  <tag name="todo" scope="all" description="To do:"/>
-	  <group title="Group 1 Packages" packages="com.dummy.test.a*"/>
-	  <group title="Group 2 Packages" packages="com.dummy.test.b*:com.dummy.test.c*"/>
-	  <link offline="true"
-	  href="http://docs.oracle.com/javase/7/docs/api/"
-	  packagelistLoc="C:\tmp"/>
-	  <link href="http://docs.oracle.com/javase/7/docs/api/"/>
+          <tag name="todo" scope="all" description="To do:"/>
+          <group title="Group 1 Packages" packages="com.dummy.test.a*"/>
+          <group title="Group 2 Packages" packages="com.dummy.test.b*:com.dummy.test.c*"/>
+          <link offline="true"
+          href="http://docs.oracle.com/javase/7/docs/api/"
+          packagelistLoc="C:\tmp"/>
+          <link href="http://docs.oracle.com/javase/7/docs/api/"/>
       -->
     </javadoc>
   </target>

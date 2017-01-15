@@ -33,6 +33,6 @@
 
 JERMIT_JAR=build/jar/jermit.jar
 JAVA=java
-UI=jermit.ui.rzsz.Send
+UI=jermit.ui.qodem.Jermit
 
 $JAVA -cp $JERMIT_JAR $UI $*

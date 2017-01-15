@@ -39,7 +39,7 @@ import jermit.tests.TestFailedException;
 /**
  * Test a basic Xmodem file transfer.
  */
-public final class Xmodem7 extends SerialTransferTest implements Runnable {
+public class Xmodem7 extends SerialTransferTest implements Runnable {
 
     /**
      * Public constructor.
@@ -75,7 +75,7 @@ public final class Xmodem7 extends SerialTransferTest implements Runnable {
         // Allow overwrite of destination file, because we just created it.
         XmodemSender sx = new XmodemSender(XmodemSession.Flavor.VANILLA,
             rx.getInputStream(), rx.getOutputStream(),
-            source.getPath(), true);
+            source.getPath());
 
         sx.run();
 

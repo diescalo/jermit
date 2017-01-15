@@ -35,7 +35,7 @@ import java.io.InputStream;
  * This class provides an optional millisecond timeout on its read()
  * operations.  This permits callers to bail out rather than block.
  */
-public final class TimeoutInputStream extends InputStream {
+public class TimeoutInputStream extends InputStream {
 
     /**
      * The wrapped stream.

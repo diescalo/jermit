@@ -41,7 +41,7 @@ import jermit.tests.io.NoisyOutputStream;
 /**
  * Test a basic binary file Xmodem file transfer with 16-bit CRC.
  */
-public final class Xmodem11 extends SerialTransferTest {
+public class Xmodem11 extends SerialTransferTest {
 
     /**
      * Public constructor.

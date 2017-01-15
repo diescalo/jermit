@@ -35,7 +35,7 @@ import java.util.Calendar;
 /**
  * This class randomly screws up write()s on an OutputStream.
  */
-public final class NoisyOutputStream extends OutputStream {
+public class NoisyOutputStream extends OutputStream {
 
     /**
      * The wrapped stream.

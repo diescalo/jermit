@@ -36,7 +36,7 @@ import java.io.InputStream;
  * This class overrides read() to throw an EOFException rather than return
  * -1.  This is used to shortcut a lot of error handling code.
  */
-public final class EOFInputStream extends InputStream {
+public class EOFInputStream extends InputStream {
 
     /**
      * The wrapped stream.

@@ -41,7 +41,7 @@ import jermit.tests.io.NoisyOutputStream;
 /**
  * Test a basic Xmodem file transfer.
  */
-public final class Xmodem12 extends SerialTransferTest implements Runnable {
+public class Xmodem12 extends SerialTransferTest implements Runnable {
 
     /**
      * Public constructor.
@@ -78,7 +78,7 @@ public final class Xmodem12 extends SerialTransferTest implements Runnable {
         XmodemSender sx = new XmodemSender(XmodemSession.Flavor.VANILLA,
             new NoisyInputStream(rx.getInputStream()),
             new NoisyOutputStream(rx.getOutputStream()),
-            source.getPath(), true);
+            source.getPath());
 
         sx.run();
 

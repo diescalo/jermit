@@ -35,7 +35,7 @@ import java.util.Calendar;
 /**
  * This class randomly screws up read()s on an InputStream.
  */
-public final class NoisyInputStream extends InputStream {
+public class NoisyInputStream extends InputStream {
 
     /**
      * The wrapped stream.

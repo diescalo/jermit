@@ -36,7 +36,7 @@ import java.util.Calendar;
  * This class bandwidth throttles an InputStream to simulate the performance
  * of a modem-based connection.
  */
-public final class ThrottledInputStream extends InputStream {
+public class ThrottledInputStream extends InputStream {
 
     /**
      * The wrapped stream.

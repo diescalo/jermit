@@ -39,7 +39,7 @@ import jermit.tests.TestFailedException;
 /**
  * Test a basic binary file Xmodem file transfer with 1K blocks.
  */
-public final class Xmodem5 extends SerialTransferTest {
+public class Xmodem5 extends SerialTransferTest {
 
     /**
      * Public constructor.

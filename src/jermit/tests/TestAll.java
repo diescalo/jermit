@@ -33,7 +33,7 @@ import jermit.tests.xmodem.*;
 /**
  * Execute all of the transfer tests.
  */
-public final class TestAll {
+public class TestAll {
 
     /**
      * Main entry point.
