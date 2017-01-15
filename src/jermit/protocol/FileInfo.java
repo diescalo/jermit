@@ -102,6 +102,27 @@ public class FileInfo {
     long startTime;
 
     /**
+     * The time at which this file completed transferring.  Note package
+     * private access.
+     */
+    long endTime;
+
+    /**
+     * If true, this file was transferred successfully.  Note package private
+     * access.
+     */
+    boolean complete = false;
+
+    /**
+     * Get complete flag.
+     *
+     * @return true if this file was transferred successfully
+     */
+    public boolean isComplete() {
+        return complete;
+    }
+    
+    /**
      * Get the local path to file.
      *
      * @return the local file
@@ -139,7 +160,7 @@ public class FileInfo {
         if (bytesTotal == 0) {
             return 0.0;
         }
-        if (bytesTransferred >= bytesTotal) {
+        if ((bytesTransferred >= bytesTotal) || (complete == true)) {
             return 100.0;
         }
         return ((double) bytesTransferred / (double) bytesTotal) * 100.0;

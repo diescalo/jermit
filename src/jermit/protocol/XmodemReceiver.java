@@ -68,6 +68,15 @@ public class XmodemReceiver implements Runnable {
     private boolean cancel = false;
 
     /**
+     * Get the session.
+     *
+     * @return the session for this transfer
+     */
+    public XmodemSession getSession() {
+        return session;
+    }
+
+    /**
      * Construct an instance to download a file using existing I/O Streams.
      *
      * @param flavor the Xmodem flavor to use

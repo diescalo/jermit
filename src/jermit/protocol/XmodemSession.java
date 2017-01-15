@@ -201,7 +201,7 @@ public class XmodemSession extends SerialFileTransferSession {
     void timeout(final OutputStream output) throws IOException {
 
         if (DEBUG) {
-            System.out.println("TIMEOUT");
+            System.err.println("TIMEOUT");
         }
         addErrorMessage("TIMEOUT");
 
@@ -224,7 +224,7 @@ public class XmodemSession extends SerialFileTransferSession {
         final OutputStream output) throws IOException {
 
         if (DEBUG) {
-            System.out.println("PURGE");
+            System.err.println("PURGE");
         }
 
         // Purge whatever is there, and try it all again.
@@ -239,7 +239,7 @@ public class XmodemSession extends SerialFileTransferSession {
 
         // Send NAK
         if (DEBUG) {
-            System.out.println("NAK " + bytesTransferred);
+            System.err.println("NAK " + bytesTransferred);
         }
 
         output.write(NAK);
@@ -257,7 +257,7 @@ public class XmodemSession extends SerialFileTransferSession {
         final OutputStream output) throws IOException {
 
         if (DEBUG) {
-            System.out.println("ACK");
+            System.err.println("ACK");
         }
 
         // Send ACK
@@ -274,7 +274,7 @@ public class XmodemSession extends SerialFileTransferSession {
     synchronized void abort(final OutputStream output) {
 
         if (DEBUG) {
-            System.out.println("ABORT");
+            System.err.println("ABORT");
         }
 
         state = State.ABORT;
@@ -319,13 +319,13 @@ public class XmodemSession extends SerialFileTransferSession {
             try {
 
                 if (DEBUG) {
-                    System.out.println("Calling input.read()");
+                    System.err.println("Calling input.read()");
                 }
 
                 int blockType = input.read();
 
                 if (DEBUG) {
-                    System.out.printf("blockType: 0x%02x\n", blockType);
+                    System.err.printf("blockType: 0x%02x\n", blockType);
                 }
 
                 if (blockType == STX) {
@@ -350,7 +350,7 @@ public class XmodemSession extends SerialFileTransferSession {
                 // complement.
                 int seqByte = input.read();
                 if (DEBUG) {
-                    System.out.printf("seqByte: 0x%02x\n", seqByte);
+                    System.err.printf("seqByte: 0x%02x\n", seqByte);
                 }
                 if ((seqByte & 0xFF) == ((sequenceNumber - 1) & 0xFF)) {
                     addErrorMessage("DUPLICATE BLOCK #" + (sequenceNumber - 1));
@@ -381,7 +381,7 @@ public class XmodemSession extends SerialFileTransferSession {
                     }
 
                     if (DEBUG) {
-                        System.out.printf("SEQ: 0x%02x %d\n", sequenceNumber,
+                        System.err.printf("SEQ: 0x%02x %d\n", sequenceNumber,
                             sequenceNumber);
                     }
                 }
@@ -459,7 +459,7 @@ public class XmodemSession extends SerialFileTransferSession {
                 }
 
                 if (DEBUG) {
-                    System.out.printf("Good CRC: 0x%04x\n", (given & 0xFFFF));
+                    System.err.printf("Good CRC: 0x%04x\n", (given & 0xFFFF));
                 }
 
                 // Good CRC, OK!
@@ -472,7 +472,7 @@ public class XmodemSession extends SerialFileTransferSession {
 
             } catch (ReadTimeoutException e) {
                 if (DEBUG) {
-                    System.out.println("TIMEOUT");
+                    System.err.println("TIMEOUT");
                 }
                 addErrorMessage("TIMEOUT");
                 if ((flavor == Flavor.X_1K_G) && (sequenceNumber == 2)) {
@@ -489,7 +489,7 @@ public class XmodemSession extends SerialFileTransferSession {
                     e.printStackTrace();
                 }
                 if (DEBUG) {
-                    System.out.println("UNEXPECTED END OF TRANSMISSION");
+                    System.err.println("UNEXPECTED END OF TRANSMISSION");
                 }
                 addErrorMessage("UNEXPECTED END OF TRANSMISSION");
                 abort(output);
@@ -538,7 +538,7 @@ public class XmodemSession extends SerialFileTransferSession {
             case X_1K_G:
                 // 'G' - 0x47
                 if (DEBUG) {
-                    System.out.println("Requested -G");
+                    System.err.println("Requested -G");
                 }
                 output.write('G');
                 break;

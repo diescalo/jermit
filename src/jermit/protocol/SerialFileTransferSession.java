@@ -29,6 +29,7 @@
 package jermit.protocol;
 
 import java.util.LinkedList;
+import java.util.List;
 import jermit.io.LocalFileInterface;
 
 /**
@@ -158,7 +159,7 @@ public abstract class SerialFileTransferSession {
      *
      * @param uploadFiles list of files to upload
      */
-    protected SerialFileTransferSession(LinkedList<FileInfo> uploadFiles) {
+    protected SerialFileTransferSession(List<FileInfo> uploadFiles) {
         messages = new LinkedList<SerialFileTransferMessage>();
         files = new LinkedList<FileInfo>();
         files.addAll(uploadFiles);
@@ -189,9 +190,10 @@ public abstract class SerialFileTransferSession {
      */
     synchronized void addInfoMessage(String message) {
         if (DEBUG) {
-            System.out.println("addInfoMessage(): " + message);
+            System.err.println("addInfoMessage(): " + message);
         }
         messages.add(new SerialFileTransferMessage(message));
+        this.notifyAll();
     }
 
     /**
@@ -202,10 +204,11 @@ public abstract class SerialFileTransferSession {
      */
     synchronized void addErrorMessage(String message) {
         if (DEBUG) {
-            System.out.println("addErrorMessage(): " + message);
+            System.err.println("addErrorMessage(): " + message);
         }
         messages.add(new SerialFileTransferMessage(
             SerialFileTransferMessage.ERROR, message));
+        this.notifyAll();
     }
 
     /**
@@ -221,6 +224,42 @@ public abstract class SerialFileTransferSession {
             }
         }
         return count;
+    }
+
+    /**
+     * Return the number of information messages seen in this transfer session.
+     *
+     * @return the number of INFO messages
+     */
+    synchronized public int infoCount() {
+        int count = 0;
+        for (SerialFileTransferMessage message: messages) {
+            if (message.isInfo()) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    /**
+     * Return the number of messages seen in this transfer session.
+     *
+     * @return the number of messages
+     */
+    synchronized public int messageCount() {
+        return messages.size();
+    }
+
+    /**
+     * Get a specific message number in the list of messages.
+     *
+     * @param index the message number 
+     * @return the message
+     * @throws IndexOutOfBoundsException if index is less than 0 or greater
+     * than messageCount()
+     */
+    synchronized public SerialFileTransferMessage getMessage(final int index) {
+        return messages.get(index);
     }
 
     /**
@@ -300,6 +339,15 @@ public abstract class SerialFileTransferSession {
             return null;
         }
         return files.getLast();
+    }
+
+    /**
+     * Get the list of all files to transfer.
+     *
+     * @return the list of files to transfer
+     */
+    synchronized public List<FileInfo> getFiles() {
+        return files;
     }
 
     /**

@@ -28,7 +28,15 @@
  */
 package jermit.ui.rzsz;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.io.IOException;
 import java.util.LinkedList;
+
+import jermit.protocol.FileInfo;
+import jermit.protocol.SerialFileTransferSession;
+import jermit.protocol.XmodemSender;
+import jermit.protocol.XmodemSession;
 
 /**
  * This class provides a main driver that behaves similarly to rzsz.  It is
@@ -56,7 +64,12 @@ public final class Send {
      * The protocol to select.  Most people want Zmodem, so default to that.
      * Even though Kermit is a lot better.
      */
-    Protocol protocol = Protocol.ZMODEM;
+    private Protocol protocol = Protocol.ZMODEM;
+
+    /**
+     * Default block size for transfer.  For Xmodem, this is 128 bytes.
+     */
+    private int blockSize = 128;
 
     /**
      * The list of filenames read from the command line.
@@ -74,10 +87,161 @@ public final class Send {
     }
 
     /**
+     * Call 'stty' to set cooked mode.
+     *
+     * <p>Actually executes '/bin/sh -c stty sane cooked &lt; /dev/tty'
+     */
+    private void sttyCooked() {
+        doStty(false);
+    }
+
+    /**
+     * Call 'stty' to set raw mode.
+     *
+     * <p>Actually executes '/bin/sh -c stty -ignbrk -brkint -parmrk -istrip
+     * -inlcr -igncr -icrnl -ixon -opost -echo -echonl -icanon -isig -iexten
+     * -parenb cs8 min 1 &lt; /dev/tty'
+     */
+    private void sttyRaw() {
+        doStty(true);
+    }
+
+    /**
+     * Call 'stty' to set raw or cooked mode.
+     *
+     * @param mode if true, set raw mode, otherwise set cooked mode
+     */
+    private void doStty(final boolean mode) {
+        String [] cmdRaw = {
+            "/bin/sh", "-c", "stty -ignbrk -brkint -parmrk -istrip -inlcr -igncr -icrnl -ixon -opost -echo -echonl -icanon -isig -iexten -parenb cs8 min 1 < /dev/tty"
+        };
+        String [] cmdCooked = {
+            "/bin/sh", "-c", "stty sane cooked < /dev/tty"
+        };
+        try {
+            Process process;
+            if (mode) {
+                process = Runtime.getRuntime().exec(cmdRaw);
+            } else {
+                process = Runtime.getRuntime().exec(cmdCooked);
+            }
+            BufferedReader in = new BufferedReader(new InputStreamReader(process.getInputStream(), "UTF-8"));
+            String line = in.readLine();
+            if ((line != null) && (line.length() > 0)) {
+                System.err.println("WEIRD?! Normal output from stty: " + line);
+            }
+            while (true) {
+                BufferedReader err = new BufferedReader(new InputStreamReader(process.getErrorStream(), "UTF-8"));
+                line = err.readLine();
+                if ((line != null) && (line.length() > 0)) {
+                    System.err.println("Error output from stty: " + line);
+                }
+                try {
+                    process.waitFor();
+                    break;
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+            int rc = process.exitValue();
+            if (rc != 0) {
+                System.err.println("stty returned error code: " + rc);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    /**
      * Execute the file transfer, whatever that is.
      */
     private void run() {
-        // TODO
+        SerialFileTransferSession session = null;
+        Thread transferThread = null;
+        Thread sessionStatusThread = null;
+
+        switch (protocol) {
+        case XMODEM:
+            // Allow CRC.  This will automatically fallback to vanilla if the
+            // receiver initiates with NAK instead of 'C'.  We can't default
+            // to 1K because we can't guarantee that the receiver will know
+            // how to handle it.
+            XmodemSession.Flavor flavor = XmodemSession.Flavor.CRC;
+            if (blockSize == 1024) {
+                // Permit 1K.  This will fallback to vanilla if they use NAK.
+                flavor = XmodemSession.Flavor.X_1K;
+            }
+
+            // Open only the first file and send it.
+            XmodemSender sx = new XmodemSender(flavor, System.in, System.out,
+                fileArgs.get(0));
+
+            session = sx.getSession();
+            SerialSessionLogger log = new SerialSessionLogger(session);
+            sessionStatusThread = new Thread(log);
+            transferThread = new Thread(sx);
+            break;
+        case YMODEM:
+            // TODO
+            System.err.println("Ymodem not yet supported.");
+            System.exit(10);
+        case ZMODEM:
+            // TODO
+            System.err.println("Zmodem not yet supported.");
+            System.exit(10);
+        case KERMIT:
+            // TODO
+            System.err.println("Kermit not yet supported.");
+            System.exit(10);
+        }
+
+        // We need System.in/out to behave like a dumb file.
+        sttyRaw();
+
+        // Now spin up the session status thread and sending thread and wait
+        // for them both to end.
+        sessionStatusThread.start();
+        transferThread.start();
+        for (;;) {
+            try {
+                transferThread.join(10);
+                sessionStatusThread.join(10);
+            } catch (InterruptedException e) {
+                // SQUASH
+            }
+            if ((!transferThread.isAlive()) &&
+                (!sessionStatusThread.isAlive())
+            ) {
+                // Both threads have completed (or died), bail out.
+                break;
+            }
+        }
+
+        // Blindly restore System.in/out.
+        sttyCooked();
+
+        /*
+         * All done, now choose an exit value:
+         *
+         *   0: ALL of the files transferred successfully.
+         *   1: SOME of the files transferred successfully.
+         *   5: NO files transferred successfully.
+         *
+         * Note that a skipped file counts as a successful transfer.
+         */
+        boolean allComplete = true;
+        int rc = 5;
+        for (FileInfo file: session.getFiles()) {
+            if (file.isComplete()) {
+                rc = 1;
+            } else {
+                allComplete = false;
+            }
+        }
+        if (allComplete == true) {
+            System.exit(0);
+        }
+        System.exit(rc);
     }
 
     /**
@@ -153,9 +317,9 @@ public final class Send {
          * These options are ignored for the following reasons:
          *
          *  1. They specify serial port behavior.
-         *  
+         *
          *  2. They cause one side to execute a command.
-         *  
+         *
          *  3. They are unique to (l)rzsz (e.g. the tcp options,
          *     ascii/binary).
          *
@@ -236,7 +400,7 @@ public final class Send {
         // One-agument parameters honored.
         if (arg.equals("--version")) {
             System.out.println("jermit " + VERSION);
-            System.exit(-1);
+            System.exit(0);
         } else if (arg.equals("-+") || arg.equals("--append")) {
             // Instruct the receiver to append transmitted data to an
             // existing file (ZMODEM only).
@@ -255,13 +419,12 @@ public final class Send {
         } else if (arg.equals("-h") || arg.equals("--help")) {
             // Display help and exit.
             showUsage();
-            System.exit(-1);
+            System.exit(0);
         } else if (arg.equals("-k") || arg.equals("--1k")) {
             // (XMODEM/YMODEM) Send files using 1024 byte blocks rather than
             // the default 128 byte blocks.  1024 byte packets speed file
             // transfers at high bit rates.
-
-            // TODO
+            blockSize = 1024;
         } else if (arg.equals("-n") || arg.equals("--newer")) {
             // (ZMODEM) Send each file if destination file does not exist.
             // Overwrite destination file if source file is newer than the
@@ -304,8 +467,7 @@ public final class Send {
             // TODO
         } else if (arg.equals("-X") || arg.equals("--xmodem")) {
             // use XMODEM protocol.
-
-            // TODO
+            protocol = Protocol.XMODEM;
         } else if (arg.equals("-y") || arg.equals("--overwrite")) {
             // Instruct a ZMODEM receiving program to overwrite any existing
             // file with the same name.
@@ -320,17 +482,15 @@ public final class Send {
             // TODO
         } else if (arg.equals("--ymodem")) {
             // use YMODEM protocol.
-
-            // TODO
+            protocol = Protocol.YMODEM;
         } else if (arg.equals("-Z") || arg.equals("--zmodem")) {
             // use ZMODEM protocol.
-
-            // TODO
+            protocol = Protocol.ZMODEM;
         } else {
             // This is an unknown option.
             System.err.println("jermit: invalid option -- '" + arg + "'");
             System.err.println("Try jermit --help for more information.");
-            System.exit(-1);
+            System.exit(2);
         }
 
         // This argument was consumed.
@@ -376,6 +536,12 @@ public final class Send {
                     fileArgs.add(args[i]);
             }
         } // for (int i = 0; i < args.length; i++)
+
+        if (fileArgs.size() == 0) {
+            System.err.println("jermit: need at least one file to send");
+            System.err.println("Try jermit --help for more information.");
+            System.exit(2);
+        }
     }
 
     /**

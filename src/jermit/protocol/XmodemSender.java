@@ -69,6 +69,15 @@ public class XmodemSender implements Runnable {
     private boolean cancel = false;
 
     /**
+     * Get the session.
+     *
+     * @return the session for this transfer
+     */
+    public XmodemSession getSession() {
+        return session;
+    }
+
+    /**
      * Construct an instance to upload a file using existing I/O Streams.
      *
      * @param flavor the Xmodem flavor to use
@@ -76,22 +85,14 @@ public class XmodemSender implements Runnable {
      * receiver
      * @param output a stream to sent bytes to an Xmodem file receiver
      * @param filename the file to write the data to
-     * @param overwrite if true, permit writing to filename even if it
-     * already exists
      * @throws IllegalArgumentException if filename already exists and
      * overwrite is false
      */
     public XmodemSender(final XmodemSession.Flavor flavor,
         final InputStream input, final OutputStream output,
-        final String filename, final boolean overwrite) {
+        final String filename) {
 
-        File file = new File(filename);
-        if ((file.exists() == true) && (overwrite == false)) {
-            throw new IllegalArgumentException(filename + " already exists, " +
-                "will not overwrite");
-        }
-
-        LocalFile localFile = new LocalFile(file);
+        LocalFile localFile = new LocalFile(new File(filename));
 
         this.output     = output;
         session         = new XmodemSession(flavor, localFile, false);
@@ -117,7 +118,7 @@ public class XmodemSender implements Runnable {
     public XmodemSender(final InputStream input, final OutputStream output,
         String filename) {
 
-        this(XmodemSession.Flavor.VANILLA, input, output, filename, false);
+        this(XmodemSession.Flavor.VANILLA, input, output, filename);
     }
 
     /**
@@ -151,7 +152,7 @@ public class XmodemSender implements Runnable {
                 flavorType = input.read();
 
                 if (DEBUG) {
-                    System.out.printf("Flavor: 0x%02x '%c'\n", flavorType,
+                    System.err.printf("Flavor: 0x%02x '%c'\n", flavorType,
                         flavorType);
                 }
 
@@ -244,7 +245,7 @@ public class XmodemSender implements Runnable {
             try {
 
                 if (DEBUG) {
-                    System.out.printf("SEQ: 0x%02x %d\n",
+                    System.err.printf("SEQ: 0x%02x %d\n",
                         session.sequenceNumber, session.sequenceNumber);
                 }
 
@@ -252,7 +253,7 @@ public class XmodemSender implements Runnable {
                 if (loadBlock == true) {
                     data = session.readFileBlock(fileInput);
                     if (DEBUG) {
-                        System.out.printf("Read %d bytes from file\n",
+                        System.err.printf("Read %d bytes from file\n",
                             (data == null ? -1 : data.length));
                     }
                 }
@@ -275,7 +276,7 @@ public class XmodemSender implements Runnable {
                 int ackByte = input.read();
                 if (ackByte == session.ACK) {
                     if (DEBUG) {
-                        System.out.println("ACK received");
+                        System.err.println("ACK received");
                     }
                     // All good, increment sequence and set to read the next
                     // block.
@@ -297,7 +298,7 @@ public class XmodemSender implements Runnable {
 
                 } else if (ackByte == session.CAN) {
                     if (DEBUG) {
-                        System.out.println("*** CAN ***");
+                        System.err.println("*** CAN ***");
                     }
 
                     // Receiver has cancelled.
@@ -309,7 +310,7 @@ public class XmodemSender implements Runnable {
                     return true;
                 } else {
                     if (DEBUG) {
-                        System.out.println("! NAK " + session.bytesTransferred);
+                        System.err.println("! NAK " + session.bytesTransferred);
                     }
 
                     session.consecutiveErrors++;
@@ -363,6 +364,11 @@ public class XmodemSender implements Runnable {
             session.startTime = System.currentTimeMillis();
         }
 
+        if (DEBUG) {
+            System.err.println("uploadFile() BEGIN");
+        }
+
+
         InputStream fileInput = null;
 
         try {
@@ -400,7 +406,7 @@ public class XmodemSender implements Runnable {
 
         } catch (EOFException e) {
             if (DEBUG) {
-                System.out.println("UNEXPECTED END OF TRANSMISSION");
+                System.err.println("UNEXPECTED END OF TRANSMISSION");
             }
             session.addErrorMessage("UNEXPECTED END OF TRANSMISSION");
             session.abort(output);
