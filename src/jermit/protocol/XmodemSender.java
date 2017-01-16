@@ -92,7 +92,8 @@ public class XmodemSender implements Runnable {
         final InputStream input, final OutputStream output,
         final String filename) {
 
-        LocalFile localFile = new LocalFile(new File(filename));
+        File file = new File(filename);
+        LocalFile localFile = new LocalFile(file);
 
         this.output     = output;
         session         = new XmodemSession(flavor, localFile, false);
@@ -103,6 +104,13 @@ public class XmodemSender implements Runnable {
             // Use the default value for this flavor of Xmodem.
             this.input  = new EOFInputStream(new TimeoutInputStream(input,
                     session.getTimeout()));
+        }
+
+        try {
+            session.transferDirectory = file.getCanonicalFile().getParentFile().
+                getPath();
+        } catch (IOException e) {
+            // SQUASH
         }
     }
 
@@ -143,6 +151,8 @@ public class XmodemSender implements Runnable {
 
         int flavorType = -1;
         int timeoutCount = 0;
+
+        session.setCurrentStatus("INIT");
 
         while (cancel == false) {
 
@@ -273,6 +283,8 @@ public class XmodemSender implements Runnable {
                 output.write(data);
                 session.writeChecksum(output, data);
 
+                session.setCurrentStatus("DATA");
+
                 int ackByte = input.read();
                 if (ackByte == session.ACK) {
                     if (DEBUG) {
@@ -286,14 +298,11 @@ public class XmodemSender implements Runnable {
 
                     // Update stats
                     synchronized (session) {
-                        file.blocksTransferred      += 1;
-                        file.blocksTotal            += 1;
-                        file.bytesTransferred       += data.length;
-                        file.bytesTotal             += data.length;
-                        session.blocksTransferred   += 1;
-                        session.blocksTotal         += 1;
-                        session.bytesTransferred    += data.length;
-                        session.bytesTotal          += data.length;
+                        file.blocksTransferred    += 1;
+                        file.bytesTransferred     += data.length;
+                        session.blocksTransferred += 1;
+                        session.bytesTransferred  += data.length;
+                        session.lastBlockMillis    = System.currentTimeMillis();
                     }
 
                 } else if (ackByte == session.CAN) {
@@ -339,6 +348,65 @@ public class XmodemSender implements Runnable {
 
         // We can send another block.
         return true;
+    }
+
+    /**
+     * Send EOT to the remote side and wait for its ACK.
+     *
+     * @param input a stream that receives bytes sent by an Xmodem file
+     * receiver
+     * @param output a stream to sent bytes to an Xmodem file receiver
+     * @throws IOException if a java.io operation throws
+     */
+    private void sendEOT(final InputStream input,
+        final OutputStream output) throws IOException {
+
+        while (cancel == false) {
+            try {
+                // We are at EOF, send the EOT and wait for the final
+                // ACK.
+                output.write(session.EOT);
+                output.flush();
+
+                int ackByte = input.read();
+                if (ackByte == session.ACK) {
+                    if (DEBUG) {
+                        System.err.println("ACK received");
+                    }
+                    return;
+
+                } else if (ackByte == session.CAN) {
+                    if (DEBUG) {
+                        System.err.println("*** CAN EOT ***");
+                    }
+
+                    // Receiver has cancelled.
+                    session.addErrorMessage("TRANSFER CANCELLED BY RECEIVER");
+                    session.abort(output);
+                    return;
+                } else {
+                    if (DEBUG) {
+                        System.err.println("! NAK EOT");
+                    }
+
+                    session.consecutiveErrors++;
+                    if (session.consecutiveErrors == 10) {
+                        // Cancel this transfer.
+                        session.abort(output);
+                        return;
+                    }
+
+                    // We either got NAK or something we don't expect.
+                    // Resend the EOT.
+                }
+
+            } catch (ReadTimeoutException e) {
+                session.timeout(output);
+
+                // Send the EOT again.
+                continue;
+            }
+        } // while (cancel == false)
     }
 
     /**
@@ -391,18 +459,34 @@ public class XmodemSender implements Runnable {
                 return;
             }
 
+            // Now that we have a transfer agreed to, and the file open, we
+            // can update the file's total information for the UI.
+            synchronized (session) {
+                file.blockSize = session.getBlockSize();
+                file.bytesTotal = file.localFile.getLength();
+                file.blocksTotal = file.bytesTotal / session.getBlockSize();
+                if (file.blocksTotal * session.getBlockSize() < file.bytesTotal) {
+                    file.blocksTotal++;
+                }
+                session.blocksTotal = file.blocksTotal;
+                session.bytesTotal = file.bytesTotal;
+            }
+
             // Send the file blocks.
             while (cancel == false) {
                 if (sendNextBlock(input, output, file, fileInput) == false) {
-
-                    // We are at EOF, send the EOT and be done.
-                    output.write(session.EOT);
-                    output.flush();
+                    sendEOT(input, output);
                     break;
                 }
             } // while (cancel == false)
 
             // Transfer is complete!
+            if (cancel == false) {
+                synchronized (session) {
+                    file.endTime = System.currentTimeMillis();
+                }
+                session.addInfoMessage("SUCCESS");
+            }
 
         } catch (EOFException e) {
             if (DEBUG) {

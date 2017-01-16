@@ -28,10 +28,16 @@
  */
 package jermit.ui.qodem;
 
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.LinkedList;
 
+import jermit.io.ThrottledInputStream;
+import jermit.io.ThrottledOutputStream;
 import jermit.protocol.FileInfo;
+import jermit.protocol.Protocol;
 import jermit.protocol.SerialFileTransferSession;
+import jermit.protocol.XmodemReceiver;
 import jermit.protocol.XmodemSender;
 import jermit.protocol.XmodemSession;
 import jermit.ui.posix.Stty;
@@ -42,16 +48,6 @@ import jermit.ui.posix.Stty;
  * System.out, while the progress bar screen is a separate Swing window.
  */
 public class Jermit {
-
-    /**
-     * The available protocols.
-     */
-    enum Protocol {
-        XMODEM,
-        YMODEM,
-        ZMODEM,
-        KERMIT
-    }
 
     /**
      * The protocol to select.  Most people want Zmodem, so default to that.
@@ -65,19 +61,31 @@ public class Jermit {
     private int blockSize = 128;
 
     /**
+     * If true, this is a download.  If false, this is an upload.  Default is
+     * upload.
+     */
+    private boolean download = false;
+
+    /**
+     * If true, use a 16-bit CRC.  For Xmodem, this means support Xmodem-CRC
+     * and Xmodem-1K, which are upgrades from vanilla.
+     */
+    private boolean crc16 = false;
+
+    /**
+     * If true, allow downloads to overwrite files.
+     */
+    private boolean overwrite = false;
+
+    /**
      * The list of filenames read from the command line.
      */
     private LinkedList<String> fileArgs;
 
     /**
-     * Process a two-argument option.
-     *
-     * @param arg the argument to process
-     * @param value the argument's option
+     * For debugging purposes, permit a bandwidth limiter.
      */
-    private void processTwoArgs(final String arg, final String value) {
-        // TODO
-    }
+    private int bps = -1;
 
     /**
      * Execute the file transfer, whatever that is.
@@ -88,25 +96,50 @@ public class Jermit {
         Thread uiThread = null;
 
         switch (protocol) {
+
         case XMODEM:
-            // Allow CRC.  This will automatically fallback to vanilla if the
-            // receiver initiates with NAK instead of 'C'.  We can't default
-            // to 1K because we can't guarantee that the receiver will know
-            // how to handle it.
-            XmodemSession.Flavor flavor = XmodemSession.Flavor.CRC;
-            if (blockSize == 1024) {
-                // Permit 1K.  This will fallback to vanilla if they use NAK.
-                flavor = XmodemSession.Flavor.X_1K;
+
+            InputStream in = System.in;
+            OutputStream out = System.out;
+
+            if (bps > 0) {
+                in = new ThrottledInputStream(in, bps);
+                out = new ThrottledOutputStream(out, bps);
             }
 
-            // Open only the first file and send it.
-            XmodemSender sx = new XmodemSender(flavor, System.in, System.out,
-                fileArgs.get(0));
+            if (download == true) {
+                // Download: default to vanilla unless the command line
+                // arguments ask for more.
+                XmodemSession.Flavor flavor = XmodemSession.Flavor.VANILLA;
+                if (blockSize == 1024) {
+                    flavor = XmodemSession.Flavor.X_1K;
+                } else if (crc16 == true) {
+                    flavor = XmodemSession.Flavor.CRC;
+                }
 
-            session = sx.getSession();
-            QodemUI ui = new QodemUI(session);
-            uiThread = new Thread(ui);
-            transferThread = new Thread(sx);
+                XmodemReceiver rx = new XmodemReceiver(flavor, in, out,
+                    fileArgs.get(0), overwrite);
+                session = rx.getSession();
+                transferThread = new Thread(rx);
+
+            } else {
+
+                // Upload: default to CRC.  This will automatically fallback
+                // to vanilla if the receiver initiates with NAK instead of
+                // 'C'.  We can't default to 1K because we can't guarantee
+                // that the receiver will know how to handle it.
+                XmodemSession.Flavor flavor = XmodemSession.Flavor.CRC;
+                if (blockSize == 1024) {
+                    // Permit 1K.  This will fallback to vanilla if they use
+                    // NAK.
+                    flavor = XmodemSession.Flavor.X_1K;
+                }
+
+                XmodemSender sx = new XmodemSender(flavor, in, out,
+                    fileArgs.get(0));
+                session = sx.getSession();
+                transferThread = new Thread(sx);
+            }
             break;
         case YMODEM:
             // TODO
@@ -124,16 +157,18 @@ public class Jermit {
 
         // We need System.in/out to behave like a dumb file.
         // DEBUG: don't do this, be able to exit. with ^C.
-        // Stty.setRaw();
+        Stty.setRaw();
 
-        // Now spin up the session status thread and sending thread and wait
-        // for them both to end.
+        // Now spin up the UI thread and transfer thread and wait for them
+        // both to end.
+        QodemUI ui = new QodemUI(session);
+        uiThread = new Thread(ui);
         uiThread.start();
         transferThread.start();
         for (;;) {
             try {
-                transferThread.join(10);
-                uiThread.join(10);
+                transferThread.join(25);
+                uiThread.join(25);
             } catch (InterruptedException e) {
                 // SQUASH
             }
@@ -178,6 +213,31 @@ public class Jermit {
     private void showUsage() {
         System.out.println("jermit version " + jermit.Version.VERSION);
         System.out.println("Usage: jermit [options] file ...");
+        System.out.println("Options:");
+        System.out.println("      --1k                   Use 1K blocks (Xmodem)");
+        System.out.println("      --bps N                Throttle to N bits per second");
+        System.out.println("      --crc16                Use 16-bit CRC (Xmodem)");
+        System.out.println("  -h, --help                 Display help text");
+        System.out.println("  -k, --kermit               Use Kermit protocol");
+        System.out.println("  -o, --overwrite            Permit download to overwrite file");
+        System.out.println("  -r, --receive              Receive file");
+        System.out.println("  -s, --send                 (DEFAULT) Send file");
+        System.out.println("      --version              Display version info");
+        System.out.println("  -x, --xmodem               Use Xmodem protocol");
+        System.out.println("  -y, --ymodem               Use Ymodem protocol");
+        System.out.println("  -z, --zmodem               (DEFAULT) Use Zmodem protocol");
+    }
+
+    /**
+     * Process a two-argument option.
+     *
+     * @param arg the argument to process
+     * @param value the argument's option
+     */
+    private void processTwoArgs(final String arg, final String value) {
+        if (arg.equals("--bps")) {
+            bps = Integer.parseInt(value);
+        }
     }
 
     /**
@@ -188,6 +248,11 @@ public class Jermit {
      * be passed to processTwoArgs().
      */
     private boolean processArg(final String arg) {
+        // Two-argument options that will be honored
+        if (arg.equals("--bps")) {
+            return false;
+        }
+
         if (arg.equals("--version")) {
             System.out.println("jermit " + jermit.Version.VERSION);
             System.out.println();
@@ -198,13 +263,23 @@ public class Jermit {
             // Display help and exit.
             showUsage();
             System.exit(0);
-        } else if (arg.equals("--kermit")) {
+        } else if (arg.equals("--crc16")) {
+            crc16 = true;
+        } else if (arg.equals("--1k")) {
+            blockSize = 1024;
+        } else if (arg.equals("-k") || arg.equals("--kermit")) {
             protocol = Protocol.KERMIT;
-        } else if (arg.equals("--xmodem")) {
+        } else if (arg.equals("-o") || arg.equals("--overwrite")) {
+            overwrite = true;
+        } else if (arg.equals("-r") || arg.equals("--receive")) {
+            download = true;
+        } else if (arg.equals("-s") || arg.equals("--send")) {
+            download = false;
+        } else if (arg.equals("-x") || arg.equals("--xmodem")) {
             protocol = Protocol.XMODEM;
-        } else if (arg.equals("--ymodem")) {
+        } else if (arg.equals("-y") || arg.equals("--ymodem")) {
             protocol = Protocol.YMODEM;
-        } else if (arg.equals("--zmodem")) {
+        } else if (arg.equals("-z") || arg.equals("--zmodem")) {
             protocol = Protocol.ZMODEM;
         } else {
             // This is an unknown option.
@@ -242,6 +317,7 @@ public class Jermit {
                     if (processArg(args[i]) == false) {
                         if (i < args.length - 2) {
                             processTwoArgs(args[i], args[i + 1]);
+                            i++;
                         } else {
                             System.err.println("Warning: command line option " +
                                 args[i] + " expects an argument");

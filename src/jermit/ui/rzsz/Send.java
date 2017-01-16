@@ -31,6 +31,7 @@ package jermit.ui.rzsz;
 import java.util.LinkedList;
 
 import jermit.protocol.FileInfo;
+import jermit.protocol.Protocol;
 import jermit.protocol.SerialFileTransferSession;
 import jermit.protocol.XmodemSender;
 import jermit.protocol.XmodemSession;
@@ -42,16 +43,6 @@ import jermit.ui.posix.Stty;
  * programs.
  */
 public class Send {
-
-    /**
-     * The available protocols.
-     */
-    enum Protocol {
-        XMODEM,
-        YMODEM,
-        ZMODEM,
-        KERMIT
-    }
 
     /**
      * The protocol to select.  Most people want Zmodem, so default to that.
@@ -452,6 +443,7 @@ public class Send {
                     if (processArg(args[i]) == false) {
                         if (i < args.length - 2) {
                             processTwoArgs(args[i], args[i + 1]);
+                            i++;
                         } else {
                             System.err.println("Warning: command line option " +
                                 args[i] + " expects an argument");

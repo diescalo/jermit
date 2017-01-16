@@ -114,6 +114,98 @@ public class FileInfo {
     boolean complete = false;
 
     /**
+     * Get the name of the file on the remote system.
+     *
+     * @return the filename
+     */
+    public String getRemoteFilename() {
+        return remoteFilename;
+    }
+
+    /**
+     * Get the size of the file.
+     *
+     * @return the size in bytes
+     */
+    public long getSize() {
+        return size;
+    }
+
+    /**
+     * Get the number of bytes successfully transferred for this file.
+     *
+     * @return the number of bytes transferred
+     */
+    public long getBytesTransferred() {
+        return bytesTransferred;
+    }
+
+    /**
+     * Get the number of bytes to transfer in total for this file.  (This may
+     * not be the same as the file size.)
+     *
+     * @return the bytes to transfer
+     */
+    public long getBytesTotal() {
+        return bytesTotal;
+    }
+
+    /**
+     * Get the number of blocks successfully transferred for this file.
+     *
+     * @return the blocks transferred
+     */
+    public long getBlocksTransferred() {
+        return blocksTransferred;
+    }
+
+    /**
+     * Get the number of blocks in total for this file.
+     *
+     * @return the total blocks
+     */
+    public long getBlocksTotal() {
+        return blocksTotal;
+    }
+
+    /**
+     * Get the size of a transfer block.  This is typically 128 for Xmodem,
+     * 1024 for Ymodem and Zmodem, and 96-1024 for Kermit.
+     *
+     * @return the block size
+     */
+    public int getBlockSize() {
+        return blockSize;
+    }
+
+    /**
+     * Get the number of errors encountered while transferring this file.
+     *
+     * @return the number of errors
+     */
+    public int getErrorCount() {
+        return errors;
+    }
+
+    /**
+     * Get the time in millis at which this file started transferring.
+     *
+     * @return the start time in millis
+     */
+    public long getStartTime() {
+        return startTime;
+    }
+
+    /**
+     * Get the time in millis at which this file completed transferring.
+     *
+     * @return the end time in millis
+     */
+    public long getEndTime() {
+        return endTime;
+    }
+
+    /**
      * Get complete flag.
      *
      * @return true if this file was transferred successfully
@@ -121,7 +213,7 @@ public class FileInfo {
     public boolean isComplete() {
         return complete;
     }
-    
+
     /**
      * Get the local path to file.
      *

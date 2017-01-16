@@ -158,7 +158,7 @@ public class LocalFile implements LocalFileInterface {
      * @throws IllegalArgumentException if file is not a regular file
      */
     public LocalFile(final File file) {
-        if (!file.isFile()) {
+        if (file.exists() && !file.isFile()) {
             throw new IllegalArgumentException(file + " is not a normal file");
         }
         this.file = file;

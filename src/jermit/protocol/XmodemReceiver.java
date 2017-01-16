@@ -111,6 +111,13 @@ public class XmodemReceiver implements Runnable {
             this.input  = new EOFInputStream(new TimeoutInputStream(input,
                     session.getTimeout()));
         }
+
+        try {
+            session.transferDirectory = file.getCanonicalFile().getParentFile().
+                getPath();
+        } catch (IOException e) {
+            // SQUASH
+        }
     }
 
     /**
@@ -158,6 +165,8 @@ public class XmodemReceiver implements Runnable {
             file.startTime = System.currentTimeMillis();
             session.startTime = System.currentTimeMillis();
         }
+
+        session.setCurrentStatus("INIT");
 
         OutputStream fileOutput = null;
         try {
@@ -209,6 +218,8 @@ public class XmodemReceiver implements Runnable {
                 }
             }
 
+            session.setCurrentStatus("DATA");
+
             if (data.length == 0) {
                 // This is EOT.  Close the file first, then trim the
                 // trailing CPM EOF's (0x1A) in it.
@@ -243,6 +254,7 @@ public class XmodemReceiver implements Runnable {
                 session.blocksTotal         += 1;
                 session.bytesTransferred    += data.length;
                 session.bytesTotal          += data.length;
+                session.lastBlockMillis      = System.currentTimeMillis();
             }
 
         } // while (cancel == false)
@@ -262,6 +274,9 @@ public class XmodemReceiver implements Runnable {
         // Transfer has ended
         synchronized (session) {
             if (cancel == false) {
+                file.endTime = System.currentTimeMillis();
+                session.addInfoMessage("SUCCESS");
+
                 if (session.state == SerialFileTransferSession.State.TRANSFER) {
                     // This is the success exit point.  Transfer was not
                     // aborted or cancelled.

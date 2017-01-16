@@ -4,7 +4,11 @@ Jermit
 Jermit is a Java implementation of several serial file transfer
 protocols.
 
-THIS PROJECT IS JUST BEGINNING.  NOTHING IS WORKING YET.
+
+WARNING!!  THIS PROJECT IS JUST BEGINNING.  NOT MUCH IS WORKING YET!!
+Right now the only thing working is basic Xmodem uploads and downloads
+between System.in/out and a local file, using a Swing frame that
+resembles the Qodem file transfer dialog.
 
 
 Why?
@@ -16,10 +20,13 @@ and Kermit -- are still useful today:
   * Communicating with old serial or dialup systems such as bulletin
     board systems (BBS).
 
+  * Uploading new firmware to switches, routers, and other embedded
+    devices.
+
   * Transferring files over an existing interactive ssh session.
 
   * Transferring files across noisy and unreliable links, for example
-    3-wire RS232 to an embedded system.
+    3-wire RS-232 to an embedded system.
 
 Programmers seeking to use the serial file transfer protocols in their
 applications have very few good choices that are Open Source or Free

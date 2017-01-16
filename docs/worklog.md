@@ -1,3 +1,15 @@
+January 16, 2017
+
+Xmodem send and receive are working, with a UI that looks pretty darn
+close to Qodem's dialog boxes.  This is very nice indeed: having the
+Qodem UI on a new Swing frame (based on Jexer's Swing backend) made it
+very short work to get the UI fields updated.  And turns out
+ThrottledInputStream was so useful that I had to keep it as a
+permanent option.
+
+Cleaning up the TODO's into a real roadmap.  Next up is Ymodem, and
+then a 0.0.1 tag.
+
 January 13, 2017
 
 IT'S FRIDAY THE 13TH!!!  DUH DUH DUUUUH!!

@@ -1,40 +1,78 @@
 Jermit TODO List
 ================
 
-ui.rzsz:
-  - Xmodem send
+0.0.1:
+
+  Ymodem:
+    YmodemReceiver
+    YmodemSender
+
+  ui.rzsz:
+    - Xmodem send
+    - Xmodem receive (as separate driver)
+
+  ui.qodem:
+    - Ymodem send/receive
+
+  bin/jermit
+    - how does one package a nicer script for Windows?
 
 
-bin/jermit
-  - how does one package a nicer script for Windows?
-  - Pick UI style
+0.0.2:
+
+  Kermit:
+    KermitSession
+    KermitReceiver
+    KermitSender
 
 
-Ymodem:
-  YmodemReceiver
-  YmodemSender
+0.0.3:
+
+  Zmodem:
+    ZmodemSession
+    ZmodemReceiver
+    ZmodemSender
+
+  Kermit:
+    KermitServerSocket
+    KermitServer
 
 
-Zmodem:
-  ZmodemSession
-  ZmodemReceiver
-  ZmodemSender
+0.0.4:
+
+  SerialURLConnection
+    XmodemURLConnection
+    YmodemURLConnection
+    ZmodemURLConnection
+    KermitURLConnection
 
 
-Kermit:
-  KermitSession
-  KermitReceiver
-  KermitSender
-  KermitServerSocket
-  KermitServer
+0.0.5:
+
+  jermit.ui.kermit.Main
+    - looks like C-Kermit
+      - readline-like support (jLine2)
+    - same command-line options
 
 
-SerialURLConnection
-  XmodemURLConnection
-  YmodemURLConnection
-  ZmodemURLConnection
-  KermitURLConnection
+0.0.6:
 
+  Test under Eclipse
+
+  Package for maven
+
+  Windows:
+    bin/jermit.bat
+
+  Bug hunt
+
+0.0.7:
+
+  Final release to 1.0.0
+
+
+General Notes
+-------------
 
 URL schemes:
 

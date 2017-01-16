@@ -134,6 +134,43 @@ public class XmodemSession extends SerialFileTransferSession {
     }
 
     /**
+     * Get the protocol name.  Each protocol can have several variants.
+     *
+     * @return the protocol name for this transfer
+     */
+    public String getProtocolName() {
+        switch (flavor) {
+        case VANILLA:
+            return "Xmodem";
+        case RELAXED:
+            return "Xmodem Relaxed";
+        case CRC:
+            return "Xmodem/CRC";
+        case X_1K:
+            return "Xmodem-1K";
+        case X_1K_G:
+            return "Xmodem-1K/G";
+        }
+
+        // Should never get here.
+        throw new IllegalArgumentException("Xmodem flavor is not set " +
+            "correctly");
+
+    }
+
+    /**
+     * Get the block size.  Each protocol can have several variants.
+     *
+     * @return the block size
+     */
+    public int getBlockSize() {
+        if ((flavor == Flavor.X_1K) || (flavor == Flavor.X_1K_G)) {
+            return 1024;
+        }
+        return 128;
+    }
+
+    /**
      * The current sequence number.  Note package private access.
      */
     int sequenceNumber = 1;
@@ -249,12 +286,10 @@ public class XmodemSession extends SerialFileTransferSession {
     /**
      * Ack the packet.
      *
-     * @param input the stream to read from
      * @param output the stream to write to
      * @throws IOException if a java.io operation throws
      */
-    private void ack(final InputStream input,
-        final OutputStream output) throws IOException {
+    private void ack(final OutputStream output) throws IOException {
 
         if (DEBUG) {
             System.err.println("ACK");
@@ -333,7 +368,8 @@ public class XmodemSession extends SerialFileTransferSession {
                 } else if (blockType == SOH) {
                     blockSize = 128;
                 } else if (blockType == EOT) {
-                    // Normal end of transmission.
+                    // Normal end of transmission.  ACK the EOT.
+                    ack(output);
                     return new byte[0];
                 } else if (blockType == CAN) {
                     // The remote side has cancelled the transfer.
@@ -412,7 +448,7 @@ public class XmodemSession extends SerialFileTransferSession {
                         // data is crap.
                         if (flavor != Flavor.X_1K_G) {
                             // Send ACK
-                            ack(input, output);
+                            ack(output);
                         }
                         continue;
                     }
@@ -428,7 +464,7 @@ public class XmodemSession extends SerialFileTransferSession {
                     sequenceNumber++;
                     if (flavor != Flavor.X_1K_G) {
                         // Send ACK
-                        ack(input, output);
+                        ack(output);
                     }
                     consecutiveErrors = 0;
                     return data;
@@ -446,7 +482,7 @@ public class XmodemSession extends SerialFileTransferSession {
                     // crap.
                     if (flavor != Flavor.X_1K_G) {
                         // Send ACK
-                        ack(input, output);
+                        ack(output);
                     }
                     continue;
                 }
@@ -465,7 +501,7 @@ public class XmodemSession extends SerialFileTransferSession {
                 // Good CRC, OK!
                 sequenceNumber++;
                 if (flavor != Flavor.X_1K_G) {
-                    ack(input, output);
+                    ack(output);
                 }
                 consecutiveErrors = 0;
                 return data;
@@ -591,11 +627,7 @@ public class XmodemSession extends SerialFileTransferSession {
      * @throws IOException if a java.io operation throws
      */
     public byte [] readFileBlock(final InputStream file) throws IOException {
-        int blockSize = 128;
-        if ((flavor == Flavor.X_1K) || (flavor == Flavor.X_1K_G)) {
-            blockSize = 1024;
-        }
-        byte [] data = new byte[blockSize];
+        byte [] data = new byte[getBlockSize()];
         int rc = file.read(data);
         if (rc == data.length) {
             return data;
@@ -611,7 +643,7 @@ public class XmodemSession extends SerialFileTransferSession {
 
         int blockN = rc;
         while (blockN < data.length) {
-            rc = file.read(data, blockN, blockSize - blockN);
+            rc = file.read(data, blockN, data.length - blockN);
             if (rc == -1) {
                 // Cool, EOF.  This will be the last block.
                 if (blockN < 128) {
@@ -650,6 +682,7 @@ public class XmodemSession extends SerialFileTransferSession {
                 "file at a time");
         }
         this.flavor = flavor;
+        this.protocol = Protocol.XMODEM;
     }
 
     /**
@@ -665,6 +698,7 @@ public class XmodemSession extends SerialFileTransferSession {
 
         super(file, download);
         this.flavor = flavor;
+        this.protocol = Protocol.XMODEM;
     }
 
     /**

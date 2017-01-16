@@ -342,6 +342,9 @@ public final class SwingScreen extends Screen {
                 createBufferStrategy(2);
                 bufferStrategy = getBufferStrategy();
             }
+
+            // Don't allow resizing for Jermit's Qodem UI.
+            setResizable(false);
         }
 
         /**
@@ -569,6 +572,10 @@ public final class SwingScreen extends Screen {
                         sessionInfo.getWindowHeight());
 
                     SwingScreen.this.frame.resizeToScreen();
+
+                    // Try to center on screen
+                    SwingScreen.this.frame.setLocationRelativeTo(null);
+
                     SwingScreen.this.frame.setVisible(true);
                 }
             });
