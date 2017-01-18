@@ -33,8 +33,8 @@ import java.util.LinkedList;
 import jermit.protocol.FileInfo;
 import jermit.protocol.Protocol;
 import jermit.protocol.SerialFileTransferSession;
-import jermit.protocol.XmodemSender;
-import jermit.protocol.XmodemSession;
+import jermit.protocol.xmodem.XmodemSender;
+import jermit.protocol.xmodem.XmodemSession;
 import jermit.ui.posix.Stty;
 
 /**

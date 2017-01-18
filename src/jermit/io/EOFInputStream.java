@@ -44,6 +44,15 @@ public class EOFInputStream extends InputStream {
     private InputStream stream;
 
     /**
+     * Get the wrapped stream.
+     *
+     * @return the wrapped stream
+     */
+    public InputStream getStream() {
+        return stream;
+    }
+
+    /**
      * Public constructor.
      *
      * @param stream the wrapped InputStream

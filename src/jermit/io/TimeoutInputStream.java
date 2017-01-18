@@ -50,6 +50,18 @@ public class TimeoutInputStream extends InputStream {
     private int timeoutMillis;
 
     /**
+     * If true, the current read() will timeout soon.
+     */
+    private volatile boolean cancel = false;
+
+    /**
+     * Request that the current read() operation timeout immediately.
+     */
+    public synchronized void cancelRead() {
+        cancel = true;
+    }
+
+    /**
      * Public constructor, at the default timeout of 10000 millis (10
      * seconds).
      *
@@ -106,9 +118,14 @@ public class TimeoutInputStream extends InputStream {
         long checkTime = System.currentTimeMillis();
         while (stream.available() == 0) {
             long now = System.currentTimeMillis();
-            if (now - checkTime > timeoutMillis) {
-                throw new ReadTimeoutException("Timeout on read(): " +
-                    (int) (now - checkTime) + " millis and still no data");
+            synchronized (this) {
+                if ((now - checkTime > timeoutMillis) || (cancel == true)) {
+                    if (cancel == true) {
+                        cancel = false;
+                    }
+                    throw new ReadTimeoutException("Timeout on read(): " +
+                        (int) (now - checkTime) + " millis and still no data");
+                }
             }
             try {
                 // How long do we sleep for, eh?  For now we will go with 2
@@ -158,9 +175,16 @@ public class TimeoutInputStream extends InputStream {
             long checkTime = System.currentTimeMillis();
             while (stream.available() == 0) {
                 long now = System.currentTimeMillis();
-                if (now - checkTime > timeoutMillis) {
-                    throw new ReadTimeoutException("Timeout on read(): " +
-                        (int) (now - checkTime) + " millis and still no data");
+
+                synchronized (this) {
+                    if ((now - checkTime > timeoutMillis) || (cancel == true)) {
+                        if (cancel == true) {
+                            cancel = false;
+                        }
+                        throw new ReadTimeoutException("Timeout on read(): " +
+                            (int) (now - checkTime) + " millis and still no " +
+                            "data");
+                    }
                 }
                 try {
                     // How long do we sleep for, eh?  For now we will go with
@@ -229,9 +253,15 @@ public class TimeoutInputStream extends InputStream {
             long checkTime = System.currentTimeMillis();
             while (stream.available() == 0) {
                 long now = System.currentTimeMillis();
-                if (now - checkTime > timeoutMillis) {
-                    throw new ReadTimeoutException("Timeout on read(): " +
-                        (int) (now - checkTime) + " millis and still no data");
+                synchronized (this) {
+                    if ((now - checkTime > timeoutMillis) || (cancel == true)) {
+                        if (cancel == true) {
+                            cancel = false;
+                        }
+                        throw new ReadTimeoutException("Timeout on read(): " +
+                            (int) (now - checkTime) + " millis and still no " +
+                            "data");
+                    }
                 }
                 try {
                     // How long do we sleep for, eh?  For now we will go with

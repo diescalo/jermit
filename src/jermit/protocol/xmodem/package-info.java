@@ -28,6 +28,6 @@
  */
 
 /**
- * Generic serial file transfer protocol interfaces.
+ * The Xmodem protocol.  Note that package private access is sometimes used.
  */
-package jermit.protocol;
+package jermit.protocol.xmodem;

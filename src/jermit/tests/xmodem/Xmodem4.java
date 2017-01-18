@@ -31,8 +31,8 @@ package jermit.tests.xmodem;
 import java.io.File;
 import java.io.IOException;
 
-import jermit.protocol.XmodemReceiver;
-import jermit.protocol.XmodemSession;
+import jermit.protocol.xmodem.XmodemReceiver;
+import jermit.protocol.xmodem.XmodemSession;
 import jermit.tests.SerialTransferTest;
 import jermit.tests.TestFailedException;
 

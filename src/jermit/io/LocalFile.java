@@ -80,7 +80,8 @@ public class LocalFile implements LocalFileInterface {
     }
 
     /**
-     * Get the remote name of this thing, i.e. the file part of a path name.
+     * Get the name of this thing that would be given to a remote system,
+     * i.e. the file part of a path name.
      *
      * @return the remote name
      */
@@ -149,6 +150,14 @@ public class LocalFile implements LocalFileInterface {
         } else {
             file.setWritable(ownerWriteable, true);
         }
+    }
+
+    /**
+     * Delete this thing.  Note that implementations may choose to ignore
+     * this.
+     */
+    public void delete() {
+        file.delete();
     }
 
     /**

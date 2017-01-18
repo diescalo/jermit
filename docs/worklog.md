@@ -1,3 +1,30 @@
+January 18, 2017
+
+Xmodem as a basic protocol is complete, as far as I know.  The design
+has settled into a reasonable place:
+
+  * SerialFileTransferSession contains the values that will be exposed
+    to a UI: blocks transferred, bytes total, list of files, current
+    file, etc.
+
+  * XmodemSession contains the pieces of the protocol itself: reading
+    and writing blocks to the wire and file, negotiating the flavor,
+    and also holding the main cancel flag.
+
+  * XmodemReceiver/XmodemSender contain the main procedural loop:
+    negotiate flavor, open file, send blocks, done.  They only carry a
+    debug boolean and reference to the session.
+
+This same pattern will follow cleanly for the other protocols.  Ymodem
+will simply be Xmodem with flavor 1K or 1K/G, and an outer loop that
+handles the 0 block.  Zmodem and Kermit will obviously have a lot more
+code in the session object than the sender/receiver, but still the
+sender/receiver can become simple state machines.
+
+Now I am separating out Xmodem from SerialFileTransfer, which will
+provide some hooks for Zmodem/Kermit to handle multi-file state
+transitions later.
+
 January 16, 2017
 
 Xmodem send and receive are working, with a UI that looks pretty darn
@@ -9,6 +36,29 @@ permanent option.
 
 Cleaning up the TODO's into a real roadmap.  Next up is Ymodem, and
 then a 0.0.1 tag.
+
+[ ...later... ]
+
+Well, it's behaving a little better: you can cancel from the UI and it
+will actually end the transfer a few seconds later.
+
+I should add the status line to it too, so that people can see the
+ESC/` message and skip option for Kermit.
+
+So now we have a nice-looking mostly-behaving-OK Xmodem program.
+About 13,000 lines of code between the combined Jermit and Jexer
+codebases.
+
+Jermit is getting clunky pretty fast too.  Making it "do what I mean"
+is putting lots of corner case code into the exception handlers and
+error blocks.  They really aren't that much smaller than the nasty
+Qodem state machine.  I will do some refactoring to make XmodemSender
+smaller, but it will always be more complicated with the
+"send-listen-send" pattern going on there, where every listen needs to
+have a timeout-and-resend option.  But better to do it now before
+Ymodem comes along to make it even nastier.
+
+Now on to bed.
 
 January 13, 2017
 

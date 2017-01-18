@@ -36,91 +36,71 @@ import jermit.io.LocalFileInterface;
 public class FileInfo {
 
     /**
-     * The path to the file if stored on the local filesystem.  Note package
-     * private access.
+     * The path to the file if stored on the local filesystem.
      */
-    LocalFileInterface localFile;
+    protected LocalFileInterface localFile;
 
     /**
-     * The name of the file on the remote system.  Note package private
-     * access.
+     * The full path and file name on the remote system.
      */
-    String remoteFilename;
+    protected String remoteFilename;
 
     /**
-     * The size of the file.  Note package private access.
+     * The size of the file.
      */
-    long size;
+    protected long size;
 
     /**
      * The modification time of the file.  Xmodem does not support this.
-     * Note package private access.
      */
-    long modtime;
+    protected long modtime;
 
     /**
-     * The number of bytes successfully transferred for this file.  Note
-     * package private access.
+     * The number of bytes successfully transferred for this file.
      */
-    long bytesTransferred;
+    protected long bytesTransferred;
 
     /**
      * The number of bytes to transfer in total for this file.  (This may not
-     * be the same as the file size.)  Note package private access.
+     * be the same as the file size.)
      */
-    long bytesTotal;
+    protected long bytesTotal;
 
     /**
-     * The number of blocks successfully transferred for this file.  Note
-     * package private access.
+     * The number of blocks successfully transferred for this file.
      */
-    long blocksTransferred;
+    protected long blocksTransferred;
 
     /**
-     * The number of blocks in total for this file.  Note package private
-     * access.
+     * The number of blocks in total for this file.
      */
-    long blocksTotal;
+    protected long blocksTotal;
 
     /**
      * The size of a transfer block.  This is typically 128 for Xmodem, 1024
-     * for Ymodem and Zmodem, and 96-1024 for Kermit.  Note package private
-     * access.
+     * for Ymodem and Zmodem, and 96-1024 for Kermit.
      */
-    int blockSize;
+    protected int blockSize;
 
     /**
-     * The number of errors encountered while transferring this file.  Note
-     * package private access.
+     * The number of errors encountered while transferring this file.
      */
-    int errors;
+    protected int errors;
 
     /**
-     * The time at which this file started transferring.  Note package
-     * private access.
+     * The time at which this file started transferring.
      */
-    long startTime;
+    protected long startTime;
 
     /**
-     * The time at which this file completed transferring.  Note package
-     * private access.
+     * The time at which this file completed transferring.
      */
-    long endTime;
+    protected long endTime;
 
     /**
-     * If true, this file was transferred successfully.  Note package private
-     * access.
+     * If true, this file was transferred successfully.
      */
-    boolean complete = false;
-
-    /**
-     * Get the name of the file on the remote system.
-     *
-     * @return the filename
-     */
-    public String getRemoteFilename() {
-        return remoteFilename;
-    }
+    protected boolean complete = false;
 
     /**
      * Get the size of the file.
@@ -233,7 +213,7 @@ public class FileInfo {
     }
 
     /**
-     * Get the remote system file name.
+     * Get the full path and file name on the remote system.
      *
      * @return the remote file name
      */

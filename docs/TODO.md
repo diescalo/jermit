@@ -3,6 +3,8 @@ Jermit TODO List
 
 0.0.1:
 
+  Status line
+
   Ymodem:
     YmodemReceiver
     YmodemSender
@@ -125,4 +127,3 @@ jermit.ui.kermit.Main
   - looks like C-Kermit
     - readline-like support
   - same command-line options
-

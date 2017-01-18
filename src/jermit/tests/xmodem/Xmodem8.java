@@ -33,8 +33,8 @@ import java.io.IOException;
 
 import jermit.io.ThrottledInputStream;
 import jermit.io.ThrottledOutputStream;
-import jermit.protocol.XmodemReceiver;
-import jermit.protocol.XmodemSession;
+import jermit.protocol.xmodem.XmodemReceiver;
+import jermit.protocol.xmodem.XmodemSession;
 import jermit.tests.SerialTransferTest;
 import jermit.tests.TestFailedException;
 

@@ -64,7 +64,8 @@ public interface LocalFileInterface {
     public String getLocalName();
 
     /**
-     * Get the remote name of this thing, i.e. the file part of a path name.
+     * Get the name of this thing that would be given to a remote system,
+     * i.e. the file part of a path name.
      *
      * @return the remote name
      */
@@ -108,5 +109,11 @@ public interface LocalFileInterface {
     public void setProtection(boolean ownerReadable, boolean ownerWriteable,
         boolean ownerExecutable, boolean worldReadable, boolean worldWriteable,
         boolean worldExecutable);
+
+    /**
+     * Delete this thing.  Note that implementations may choose to ignore
+     * this.
+     */
+    public void delete();
 
 }

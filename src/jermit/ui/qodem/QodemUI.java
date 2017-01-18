@@ -35,8 +35,9 @@ import jermit.protocol.FileInfo;
 import jermit.protocol.Protocol;
 import jermit.protocol.SerialFileTransferMessage;
 import jermit.protocol.SerialFileTransferSession;
-import jermit.protocol.XmodemSender;
-import jermit.protocol.XmodemSession;
+import jermit.protocol.xmodem.XmodemReceiver;
+import jermit.protocol.xmodem.XmodemSender;
+import jermit.protocol.xmodem.XmodemSession;
 
 import jermit.ui.qodem.jexer.bits.Color;
 import jermit.ui.qodem.jexer.bits.CellAttributes;
@@ -57,6 +58,11 @@ public class QodemUI implements Runnable {
      * The file transfer session.
      */
     private SerialFileTransferSession session;
+
+    // The protocol handlers.  We need to call their cancelTransfer()
+    // function directly.  Note package private access.
+    XmodemSender xmodemSender;
+    XmodemReceiver xmodemReceiver;
 
     /**
      * Input events are processed by this Terminal.
@@ -131,6 +137,11 @@ public class QodemUI implements Runnable {
     private int oldMouseY;
 
     /**
+     * If true, bail out of run().
+     */
+    private boolean done = false;
+
+    /**
      * Get keyboard, mouse, and screen resize events.
      *
      * @param queue list to append new events to
@@ -157,9 +168,25 @@ public class QodemUI implements Runnable {
             }
 
             if (event instanceof TKeypressEvent) {
+                if ((session.getState() == SerialFileTransferSession.State.END) ||
+                    (session.getState() == SerialFileTransferSession.State.ABORT)
+                ) {
+                    done = true;
+                }
+
                 TKeypressEvent keypress = (TKeypressEvent) event;
-                if (keypress.equals(kbCtrlC) || keypress.equals(kbEsc)) {
-                    session.cancelTransfer(true);
+                if (keypress.equals(kbCtrlC) ||
+                    keypress.equals(kbEsc) ||
+                    // Backtick cancels too.
+                    ((keypress.getKey().isFnKey() == false) &&
+                        (keypress.getKey().getChar() == '`'))
+                ) {
+                    if (xmodemReceiver != null) {
+                        xmodemReceiver.cancelTransfer(true);
+                    }
+                    if (xmodemSender != null) {
+                        xmodemSender.cancelTransfer(true);
+                    }
                 }
             }
         }
@@ -246,6 +273,10 @@ public class QodemUI implements Runnable {
                 (session.getState() == SerialFileTransferSession.State.ABORT)
             ) {
                 transferTime = file.getEndTime() - file.getStartTime();
+                if (transferTime < 0) {
+                    // We aborted without setting the file's end time.
+                    transferTime = now - file.getStartTime();
+                }
             } else {
                 transferTime = now - file.getStartTime();
             }
@@ -357,7 +388,7 @@ public class QodemUI implements Runnable {
             // At the end of the transfer, we can wait up to 3 seconds.
             long waitStart = 0;
 
-            for (;;) {
+            while (done == false) {
 
                 getEvents();
 
@@ -390,7 +421,8 @@ public class QodemUI implements Runnable {
                 } catch (InterruptedException e) {
                     // SQUASH
                 }
-            } // for (;;)
+
+            } // while (done == false)
 
             screen.shutdown();
         } catch (Throwable t) {

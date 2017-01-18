@@ -37,9 +37,9 @@ import jermit.io.ThrottledOutputStream;
 import jermit.protocol.FileInfo;
 import jermit.protocol.Protocol;
 import jermit.protocol.SerialFileTransferSession;
-import jermit.protocol.XmodemReceiver;
-import jermit.protocol.XmodemSender;
-import jermit.protocol.XmodemSession;
+import jermit.protocol.xmodem.XmodemReceiver;
+import jermit.protocol.xmodem.XmodemSender;
+import jermit.protocol.xmodem.XmodemSession;
 import jermit.ui.posix.Stty;
 
 /**
@@ -94,6 +94,8 @@ public class Jermit {
         SerialFileTransferSession session = null;
         Thread transferThread = null;
         Thread uiThread = null;
+        XmodemReceiver rx = null;
+        XmodemSender sx = null;
 
         switch (protocol) {
 
@@ -117,8 +119,8 @@ public class Jermit {
                     flavor = XmodemSession.Flavor.CRC;
                 }
 
-                XmodemReceiver rx = new XmodemReceiver(flavor, in, out,
-                    fileArgs.get(0), overwrite);
+                rx = new XmodemReceiver(flavor, in, out, fileArgs.get(0),
+                    overwrite);
                 session = rx.getSession();
                 transferThread = new Thread(rx);
 
@@ -135,8 +137,7 @@ public class Jermit {
                     flavor = XmodemSession.Flavor.X_1K;
                 }
 
-                XmodemSender sx = new XmodemSender(flavor, in, out,
-                    fileArgs.get(0));
+                sx = new XmodemSender(flavor, in, out, fileArgs.get(0));
                 session = sx.getSession();
                 transferThread = new Thread(sx);
             }
@@ -162,6 +163,8 @@ public class Jermit {
         // Now spin up the UI thread and transfer thread and wait for them
         // both to end.
         QodemUI ui = new QodemUI(session);
+        ui.xmodemReceiver = rx;
+        ui.xmodemSender = sx;
         uiThread = new Thread(ui);
         uiThread.start();
         transferThread.start();

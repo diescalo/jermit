@@ -87,9 +87,6 @@ public final class TMouseEvent extends TInputEvent {
      * Set x.
      *
      * @param x new relative X value
-     * @see jexer.TWidget#onMouseDown(TMouseEvent mouse)
-     * @see jexer.TWidget#onMouseDown(TMouseEvent mouse)
-     * @see jexer.TWidget#onMouseMotion(TMouseEvent mouse)
      */
     public void setX(final int x) {
         this.x = x;
@@ -113,9 +110,6 @@ public final class TMouseEvent extends TInputEvent {
      * Set y.
      *
      * @param y new relative Y value
-     * @see jexer.TWidget#onMouseDown(TMouseEvent mouse)
-     * @see jexer.TWidget#onMouseDown(TMouseEvent mouse)
-     * @see jexer.TWidget#onMouseMotion(TMouseEvent mouse)
      */
     public void setY(final int y) {
         this.y = y;
