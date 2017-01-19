@@ -5,6 +5,10 @@ Jermit TODO List
 
   Status line
 
+  Xmodem:
+    - 2 CANs cancels, not 1
+
+
   Ymodem:
     YmodemReceiver
     YmodemSender

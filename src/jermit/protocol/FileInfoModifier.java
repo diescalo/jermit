@@ -167,6 +167,9 @@ public class FileInfoModifier {
      * protocol implementations
      */
     FileInfoModifier(final FileInfo fileInfo) {
+        if (fileInfo == null) {
+            throw new IllegalArgumentException("fileInfo cannot be null");
+        }
         this.fileInfo = fileInfo;
     }
 

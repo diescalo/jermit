@@ -29,6 +29,7 @@
 package jermit.tests;
 
 import jermit.tests.xmodem.*;
+import jermit.tests.ymodem.*;
 
 /**
  * Execute all of the transfer tests.
@@ -80,6 +81,8 @@ public class TestAll {
             (new Xmodem12()).doTest();
 
             }
+
+            (new Ymodem1()).doTest();
 
         } catch (Throwable t) {
             t.printStackTrace();

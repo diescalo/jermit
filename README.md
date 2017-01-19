@@ -46,9 +46,12 @@ liberally licensed for any use.  The protocols are designed to be
 flexible building blocks: the remote side can be any InputStream +
 OutputStream, and the local "file" can be file, byte buffer, or a
 custom interface that provides a few file primitives.  These can thus
-be easily incorporated into other APIs.  For example one can easily
-use a KermitURLConnection to download from a C-Kermit Internet Kermit
-Server using an address like "kermit://the.server.name/filename" .
+be easily incorporated into other APIs.  For example one could use a
+KermitURLConnection to download from a C-Kermit Internet Kermit Server
+using an address like "kermit://the.server.name/filename" .  It is
+hoped that this code is very obvious in what it does, such that it
+would be very straightforward to transliterate these protocols into
+other languages (C++, C#, Go, Rust, Pascal, etc.).
 
 These protocols are very loosely based on those developed for the
 Qodem terminal emulator, taking advantage of the testing performed for
@@ -58,7 +61,8 @@ VT100/xterm-like Java terminal in the Jexer jexer.tterminal.ECMA48
 class: combining Jermit and Jexer one could rather quickly put
 together a terminal emulator that could both pass vttest and transfer
 files.  Jexer (licensed MIT) is available at
-https://github.com/klamonte/jexer .
+https://github.com/klamonte/jexer .  The Jexer Swing backend code is
+reproduced here for use Jermit's "Qodem" UI (jermit.ui.qodem.Jermit).
 
 
 License

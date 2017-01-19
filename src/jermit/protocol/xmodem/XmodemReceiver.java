@@ -53,7 +53,7 @@ public class XmodemReceiver implements Runnable {
     /**
      * The Xmodem session state.
      */
-    private XmodemSession session;
+    protected XmodemSession session;
 
     /**
      * Get the session.
@@ -62,6 +62,21 @@ public class XmodemReceiver implements Runnable {
      */
     public XmodemSession getSession() {
         return session;
+    }
+
+    /**
+     * Construct an instance to download multiple files using existing I/O
+     * Streams.
+     *
+     * @param flavor the Xmodem flavor to use
+     * @param input a stream that receives bytes sent by an Xmodem file
+     * sender
+     * @param output a stream to sent bytes to an Xmodem file sender
+     */
+    protected XmodemReceiver(final XmodemSession.Flavor flavor,
+        final InputStream input, final OutputStream output) {
+
+        session = new XmodemSession(flavor, input, output, true);
     }
 
     /**
@@ -108,7 +123,7 @@ public class XmodemReceiver implements Runnable {
      * @throws IllegalArgumentException if filename already exists
      */
     public XmodemReceiver(final InputStream input, final OutputStream output,
-        String filename) {
+        final String filename) {
 
         this(XmodemSession.Flavor.VANILLA, input, output, filename, false);
     }
@@ -118,7 +133,25 @@ public class XmodemReceiver implements Runnable {
      * thrown will be emitted to System.err.
      */
     public void run() {
+        // Start with init.
+        session.setCurrentStatus("INIT");
+
+        // We will download only the first file.
+        synchronized (session) {
+            session.setState(SerialFileTransferSession.State.TRANSFER);
+            session.setCurrentFile(0);
+        }
+
+        // Download the file.
         downloadFile();
+
+        // Note that the session is over.
+        if (session.getState() == SerialFileTransferSession.State.FILE_DONE) {
+            // This is the success exit point.  Transfer was not aborted or
+            // cancelled.
+            session.setState(SerialFileTransferSession.State.END);
+            session.setEndTime(System.currentTimeMillis());
+        }
     }
 
     /**
@@ -139,14 +172,11 @@ public class XmodemReceiver implements Runnable {
         FileInfoModifier setFile;
 
         synchronized (session) {
-            session.setState(SerialFileTransferSession.State.TRANSFER);
             file = session.getCurrentFile();
             setFile = session.getCurrentFileInfoModifier();
             setFile.setStartTime(System.currentTimeMillis());
-            session.setStartTime(System.currentTimeMillis());
+            session.setStartTime(file.getStartTime());
         }
-
-        session.setCurrentStatus("INIT");
 
         OutputStream fileOutput = null;
         try {
@@ -256,18 +286,13 @@ public class XmodemReceiver implements Runnable {
         // Transfer has ended
         synchronized (session) {
             if (session.cancelFlag == 0) {
+                // Success!
                 setFile.setEndTime(System.currentTimeMillis());
                 session.addInfoMessage("SUCCESS");
-
-                if (session.getState() == SerialFileTransferSession.State.TRANSFER) {
-                    // This is the success exit point.  Transfer was not
-                    // aborted or cancelled.
-                    session.setState(SerialFileTransferSession.State.END);
-                    session.setEndTime(System.currentTimeMillis());
-                }
+                session.setState(SerialFileTransferSession.State.FILE_DONE);
             }
             if (session.cancelFlag == 2) {
-                // We need to unlink the file.
+                // Transfer was cancelled, and we need to unlink the file.
                 file.getLocalFile().delete();
             }
         }

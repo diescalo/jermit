@@ -238,12 +238,14 @@ public class XmodemSession extends SerialFileTransferSession {
     }
 
     /**
-     * Set the state of this transfer.
+     * Set the state of this transfer.  Overridden to permit xmodem package
+     * access.
      *
      * @param state one of the State enum values
      */
+    @Override
     protected void setState(final State state) {
-        this.state = state;
+        super.setState(state);
     }
 
     /**
@@ -289,7 +291,7 @@ public class XmodemSession extends SerialFileTransferSession {
      * @param data the data bytes to perform the CRC against
      * @return the 16-bit CRC
      */
-    private int crc16(byte [] data) {
+    protected int crc16(byte [] data) {
         int crc = 0;
         for (int i = 0; i < data.length; i++) {
             crc = crc ^ (((int) data[i]) << 8);
@@ -417,7 +419,7 @@ public class XmodemSession extends SerialFileTransferSession {
         }
         addErrorMessage(message);
 
-        state = State.ABORT;
+        setState(State.ABORT);
 
         // Send CAN, squashing any errors
         try {
@@ -631,7 +633,7 @@ public class XmodemSession extends SerialFileTransferSession {
      *
      * @return the number of millis for this flavor of Xmodem
      */
-    protected int getTimeout() {
+    private int getTimeout() {
         if (flavor == Flavor.RELAXED) {
             // Relaxed: 100 seconds
             return 100 * 1000;
@@ -1046,7 +1048,7 @@ public class XmodemSession extends SerialFileTransferSession {
     }
 
     /**
-     * Construct an instance to represent a file upload.
+     * Construct an instance to represent a single file upload.
      *
      * @param flavor the Xmodem flavor to use
      * @param input a stream that receives bytes sent by another Xmodem
@@ -1111,6 +1113,35 @@ public class XmodemSession extends SerialFileTransferSession {
     }
 
     /**
+     * Construct an instance to represent a batch file upload or download.
+     *
+     * @param flavor the Xmodem flavor to use
+     * @param input a stream that receives bytes sent by another Xmodem
+     * instance
+     * @param output a stream to sent bytes to another Xmodem instance
+     * @param download If true, this session represents a download.  If
+     * false, it represents an upload.
+     */
+    protected XmodemSession(final Flavor flavor, final InputStream input,
+        final OutputStream output, final boolean download) {
+
+        super(download);
+        this.flavor      = flavor;
+        this.protocol    = Protocol.XMODEM;
+        this.output      = output;
+        this.currentFile = -1;
+
+        if (input instanceof TimeoutInputStream) {
+            // Someone has already set the timeout.  Keep their value.
+            this.input  = new EOFInputStream(input);
+        } else {
+            // Use the default value for this flavor of Xmodem.
+            this.input  = new EOFInputStream(new TimeoutInputStream(input,
+                    getTimeout()));
+        }
+    }
+
+    /**
      * Cancel this entire file transfer.  The session state will become
      * ABORT.
      *
@@ -1119,7 +1150,7 @@ public class XmodemSession extends SerialFileTransferSession {
      */
     public void cancelTransfer(boolean keepPartial) {
         synchronized (this) {
-            state = State.ABORT;
+            setState(State.ABORT);
             if (keepPartial == true) {
                 cancelFlag = 1;
             } else {
@@ -1146,7 +1177,8 @@ public class XmodemSession extends SerialFileTransferSession {
      * to the FileInfo fields.
      */
     protected FileInfoModifier getCurrentFileInfoModifier() {
-        return getFileInfoModifier(getCurrentFile());
+        FileInfo file = getCurrentFile();
+        return getFileInfoModifier(file);
     }
 
     /**
@@ -1155,6 +1187,7 @@ public class XmodemSession extends SerialFileTransferSession {
      *
      * @param message the message text
      */
+    @Override
     protected synchronized void addInfoMessage(String message) {
         super.addInfoMessage(message);
     }
@@ -1165,8 +1198,20 @@ public class XmodemSession extends SerialFileTransferSession {
      *
      * @param message the message text
      */
+    @Override
     protected synchronized void addErrorMessage(String message) {
         super.addErrorMessage(message);
+    }
+
+    /**
+     * Set the current file being transferred.  Overridden to permit xmodem
+     * package access.
+     *
+     * @param currentFile the index in the files list
+     */
+    @Override
+    protected synchronized void setCurrentFile(final int currentFile) {
+        this.currentFile = currentFile;
     }
 
 }

@@ -80,7 +80,7 @@ public abstract class SerialFileTransferSession {
     /**
      * The state of this transfer session.
      */
-    protected State state = State.INIT;
+    private State state = State.INIT;
 
     /**
      * The directory that contains the file(s) of this transfer.
@@ -187,6 +187,15 @@ public abstract class SerialFileTransferSession {
     }
 
     /**
+     * Set the state of this transfer.
+     *
+     * @param state one of the State enum values
+     */
+    protected void setState(final State state) {
+        this.state = state;
+    }
+
+    /**
      * Get the protocol name.  Each protocol can have several variants.
      *
      * @return the protocol name for this transfer
@@ -254,6 +263,19 @@ public abstract class SerialFileTransferSession {
     }
 
     /**
+     * Construct an instance to represent a batch upload or download.
+     *
+     * @param download If true, this session represents a download.  If
+     * false, it represents an upload.
+     */
+    protected SerialFileTransferSession(boolean download) {
+
+        this.download = download;
+        messages = new LinkedList<SerialFileTransferMessage>();
+        files = new LinkedList<FileInfo>();
+    }
+
+    /**
      * Construct an instance to represent a single file upload or download.
      *
      * @param file path to one file on the local filesystem
@@ -263,8 +285,7 @@ public abstract class SerialFileTransferSession {
     protected SerialFileTransferSession(LocalFileInterface file,
         boolean download) {
 
-        this.download = download;
-        messages = new LinkedList<SerialFileTransferMessage>();
+        this(download);
         files = new LinkedList<FileInfo>();
         files.add(new FileInfo(file));
     }
@@ -442,6 +463,15 @@ public abstract class SerialFileTransferSession {
             return null;
         }
         return files.get(currentFile);
+    }
+
+    /**
+     * Set the current file being transferred.
+     *
+     * @param currentFile the index in the files list
+     */
+    protected synchronized void setCurrentFile(final int currentFile) {
+        this.currentFile = currentFile;
     }
 
     /**

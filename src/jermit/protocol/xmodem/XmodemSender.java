@@ -137,7 +137,7 @@ public class XmodemSender implements Runnable {
             file = session.getCurrentFile();
             setFile = session.getCurrentFileInfoModifier();
             setFile.setStartTime(System.currentTimeMillis());
-            session.setStartTime(System.currentTimeMillis());
+            session.setStartTime(file.getStartTime());
         }
 
         if (DEBUG) {
