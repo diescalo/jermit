@@ -39,12 +39,12 @@ import jermit.tests.TestFailedException;
 /**
  * Test a basic binary file Ymodem file transfer.
  */
-public class Ymodem1 extends SerialTransferTest {
+public class Ymodem2 extends SerialTransferTest {
 
     /**
      * Public constructor.
      */
-    public Ymodem1() {
+    public Ymodem2() {
     }
 
     /**
@@ -52,7 +52,7 @@ public class Ymodem1 extends SerialTransferTest {
      */
     @Override
     public void doTest() throws IOException, TestFailedException {
-        System.out.printf("Ymodem1: one binary file download - VANILLA\n");
+        System.out.printf("Ymodem2: one binary file download - Ymodem/G\n");
 
         // Process:
         //
@@ -79,7 +79,7 @@ public class Ymodem1 extends SerialTransferTest {
         ProcessBuilder syb = new ProcessBuilder("sb", source.getPath());
         Process sy = syb.start();
 
-        YmodemReceiver ry = new YmodemReceiver(YmodemSession.YFlavor.VANILLA,
+        YmodemReceiver ry = new YmodemReceiver(YmodemSession.YFlavor.Y_G,
             sy.getInputStream(), sy.getOutputStream(), destinationPath, false);
 
         ry.run();
@@ -96,7 +96,7 @@ public class Ymodem1 extends SerialTransferTest {
      */
     public static void main(final String [] args) {
         try {
-            Ymodem1 test = new Ymodem1();
+            Ymodem2 test = new Ymodem2();
             test.doTest();
         } catch (Throwable t) {
             t.printStackTrace();

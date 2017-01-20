@@ -84,8 +84,23 @@ public abstract class SerialTransferTest implements Runnable {
      * @return true if the files have the same content and length
      * @throws IOException if a java.io operation throws
      */
-    public boolean compareFilesAscii(File file1, File file2)
-        throws IOException {
+    public boolean compareFilesAscii(String file1,
+        String file2) throws IOException {
+
+        return compareFilesAscii(new File(file1), new File(file2));
+    }
+
+    /**
+     * Compare the data contents of two files, ignoring any amount of
+     * trailing ^Z's.
+     *
+     * @param file1 the first file to compare
+     * @param file2 the second file to compare
+     * @return true if the files have the same content and length
+     * @throws IOException if a java.io operation throws
+     */
+    public boolean compareFilesAscii(File file1,
+        File file2) throws IOException {
 
         InputStream in1 = new FileInputStream(file1);
         InputStream in2 = new FileInputStream(file2);
@@ -134,8 +149,19 @@ public abstract class SerialTransferTest implements Runnable {
      * @return true if the files have the same content and length
      * @throws IOException if a java.io operation throws
      */
-    public boolean compareFiles(File file1, File file2)
-        throws IOException {
+    public boolean compareFiles(String file1, String file2) throws IOException {
+        return compareFiles(new File(file1), new File(file2));
+    }
+
+    /**
+     * Compare the data contents of two files.
+     *
+     * @param file1 the first file to compare
+     * @param file2 the second file to compare
+     * @return true if the files have the same content and length
+     * @throws IOException if a java.io operation throws
+     */
+    public boolean compareFiles(File file1, File file2) throws IOException {
 
         if (file1.length() != file2.length()) {
             return false;

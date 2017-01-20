@@ -45,6 +45,8 @@ public class TestAll {
         try {
             System.out.println("--- Executing all Jermit tests... ---");
 
+            // if (false) {
+
             /*
              * Downloads - clean line
              */
@@ -82,7 +84,11 @@ public class TestAll {
 
             }
 
+            // }
+
             (new Ymodem1()).doTest();
+            (new Ymodem2()).doTest();
+            (new Ymodem3()).doTest();
 
         } catch (Throwable t) {
             t.printStackTrace();

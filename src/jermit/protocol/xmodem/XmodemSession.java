@@ -551,6 +551,10 @@ public class XmodemSession extends SerialFileTransferSession {
                         if (flavor != Flavor.X_1K_G) {
                             // Send ACK
                             ack();
+                        } else {
+                            if (DEBUG) {
+                                System.err.println("DUP checksum -G, no ack");
+                            }
                         }
                         continue;
                     }
@@ -565,6 +569,10 @@ public class XmodemSession extends SerialFileTransferSession {
                     if (flavor != Flavor.X_1K_G) {
                         // Send ACK
                         ack();
+                    } else {
+                        if (DEBUG) {
+                            System.err.println("checksum -G, no ack");
+                        }
                     }
                     consecutiveErrors = 0;
                     return data;
@@ -583,6 +591,10 @@ public class XmodemSession extends SerialFileTransferSession {
                     if (flavor != Flavor.X_1K_G) {
                         // Send ACK
                         ack();
+                    } else {
+                        if (DEBUG) {
+                            System.err.println("DUP CRC -G, no ack");
+                        }
                     }
                     continue;
                 }
@@ -600,6 +612,10 @@ public class XmodemSession extends SerialFileTransferSession {
                 sequenceNumber++;
                 if (flavor != Flavor.X_1K_G) {
                     ack();
+                } else {
+                    if (DEBUG) {
+                        System.err.println("CRC -G, no ack");
+                    }
                 }
                 consecutiveErrors = 0;
                 return data;

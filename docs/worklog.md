@@ -1,3 +1,20 @@
+January 20, 2017
+
+Ymodem receive is working fine now.  Nicely enough -G mode worked with
+zero code changes: I had to actually add prints just to see that it
+hadn't fell back to vanilla.  (And now I know for sure that sx cannot
+do Xmodem-1K/G.)  It was more work figuring out how to keep the
+package private set fields working across packages (between
+XmodemSession and YmodemSession) than doing the actual protocol: my
+YmodemReceiver had its own YmodemSession variable that was hiding
+XmodemReceiver's XmodemSession variable.  Oops.  But now we have
+download tests for one file in vanilla vs G and four files at G.
+
+YmodemSender might come together this weekend.  If so, then there are
+just the UI's to catch up to, and then I can tag the first release.
+We will see, I might also need this weekend to vacation a bit for
+sanity.
+
 January 18, 2017
 
 Xmodem as a basic protocol is complete, as far as I know.  The design

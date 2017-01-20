@@ -39,12 +39,20 @@ import jermit.tests.TestFailedException;
 /**
  * Test a basic binary file Ymodem file transfer.
  */
-public class Ymodem1 extends SerialTransferTest {
+public class Ymodem3 extends SerialTransferTest {
+
+    class FilePair {
+        public String name;
+        public String tmpSourceName;
+        public String tmpSourcePath;
+        public String tmpDestName;
+        public String tmpDestPath;
+    }
 
     /**
      * Public constructor.
      */
-    public Ymodem1() {
+    public Ymodem3() {
     }
 
     /**
@@ -52,19 +60,37 @@ public class Ymodem1 extends SerialTransferTest {
      */
     @Override
     public void doTest() throws IOException, TestFailedException {
-        System.out.printf("Ymodem1: one binary file download - VANILLA\n");
+        System.out.printf("Ymodem3: 4 binary file downloads - Ymodem/G\n");
 
         // Process:
         //
         //   1. Extract jermit/tests/data/lady-of-shalott.jpg to
         //      a temp file.
-        //   2. Spawn 'sb /path/to/lady-of-shalott.jpg'
-        //   3. Spin up YmodemReceiver to download to a temp directory.
-        //   4. Read both files and compare contents.
+        //   2. Extract jermit/tests/data/qm5.zip to
+        //      a temp file.
+        //   3. Extract jermit/tests/data/William-Adolphe_Bouguereau_(1825-1905)_-_A_Young_Girl_Defending_Herself_Against_Eros_(1880).jpg
+        //      to a temp file.
+        //   4. Extract jermit/tests/data/rfc856.txt to a temp file.
+        //   5. Spawn 'sb /path/to/temp1 /path/to/temp2 ...'
+        //   6. Spin up YmodemReceiver to download to a temp directory.
+        //   7. Read all file pairs and compare contents.
 
-        File source = File.createTempFile("send-ymodem", ".jpg");
-        saveResourceToFile("jermit/tests/data/lady-of-shalott.jpg", source);
-        source.deleteOnExit();
+        FilePair [] pairs = new FilePair[4];
+        for (int i = 0; i < pairs.length; i++) {
+            pairs[i] = new FilePair();
+        }
+        pairs[0].name = "lady-of-shalott.jpg";
+        pairs[1].name = "qm5.zip";
+        pairs[2].name = "William-Adolphe_Bouguereau_(1825-1905)_-_A_Young_Girl_Defending_Herself_Against_Eros_(1880).jpg";
+        pairs[3].name = "rfc856.txt";
+
+        for (int i = 0; i < pairs.length; i++) {
+            File source = File.createTempFile("send-ymodem", "");
+            saveResourceToFile("jermit/tests/data/" + pairs[i].name, source);
+            source.deleteOnExit();
+            pairs[i].tmpSourceName = source.getName();
+            pairs[i].tmpSourcePath = source.getPath();
+        }
 
         // Create a directory
         File destinationDirName = File.createTempFile("receive-ymodem", "");
@@ -73,20 +99,32 @@ public class Ymodem1 extends SerialTransferTest {
         File destinationDir = new File(destinationPath);
         destinationDir.mkdir();
         destinationDir.deleteOnExit();
-        File destination = new File(destinationPath, source.getName());
-        destination.deleteOnExit();
 
-        ProcessBuilder syb = new ProcessBuilder("sb", source.getPath());
+        for (int i = 0; i < pairs.length; i++) {
+            File destination = new File(destinationPath,
+                pairs[i].tmpSourceName);
+            destination.deleteOnExit();
+            pairs[i].tmpDestName = destination.getName();
+            pairs[i].tmpDestPath = destination.getPath();
+        }
+
+        ProcessBuilder syb = new ProcessBuilder("sb",
+            pairs[0].tmpSourcePath,
+            pairs[1].tmpSourcePath,
+            pairs[2].tmpSourcePath,
+            pairs[3].tmpSourcePath);
         Process sy = syb.start();
 
-        YmodemReceiver ry = new YmodemReceiver(YmodemSession.YFlavor.VANILLA,
+        YmodemReceiver ry = new YmodemReceiver(YmodemSession.YFlavor.Y_G,
             sy.getInputStream(), sy.getOutputStream(), destinationPath, false);
 
         ry.run();
-        if (!compareFiles(source, destination)) {
-            throw new TestFailedException("Files are not the same");
+        for (int i = 0; i < pairs.length; i++) {
+            if (!compareFiles(pairs[i].tmpSourcePath, pairs[i].tmpDestPath)) {
+                throw new TestFailedException(pairs[i].name +
+                    ": Files are not the same");
+            }
         }
-
     }
 
     /**
@@ -96,7 +134,7 @@ public class Ymodem1 extends SerialTransferTest {
      */
     public static void main(final String [] args) {
         try {
-            Ymodem1 test = new Ymodem1();
+            Ymodem3 test = new Ymodem3();
             test.doTest();
         } catch (Throwable t) {
             t.printStackTrace();

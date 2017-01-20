@@ -10,7 +10,6 @@ Jermit TODO List
 
 
   Ymodem:
-    YmodemReceiver
     YmodemSender
 
   ui.rzsz:
