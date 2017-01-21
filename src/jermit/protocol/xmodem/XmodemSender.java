@@ -54,7 +54,7 @@ public class XmodemSender implements Runnable {
     /**
      * The Xmodem session state.
      */
-    private XmodemSession session;
+    protected XmodemSession session;
 
     /**
      * Get the session.
@@ -108,11 +108,41 @@ public class XmodemSender implements Runnable {
     }
 
     /**
+     * Construct an instance to upload a file using existing I/O Streams.
+     *
+     * @param flavor the Xmodem flavor to use
+     * @param input a stream that receives bytes sent by an Xmodem file
+     * receiver
+     * @param output a stream to sent bytes to an Xmodem file receiver
+     */
+    protected XmodemSender(final XmodemSession.Flavor flavor,
+        final InputStream input, final OutputStream output) {
+
+        session = new XmodemSession(flavor, input, output, true);
+    }
+
+    /**
      * Perform a file upload using the Xmodem protocol.  Any exceptions
      * thrown will be emitted to System.err.
      */
     public void run() {
+        // Start with init.
+        session.setCurrentStatus("INIT");
+
+        // We will download only the first file.
+        synchronized (session) {
+            session.setCurrentFile(0);
+        }
+
         uploadFile();
+
+        // Note that the session is over.
+        if (session.getState() == SerialFileTransferSession.State.FILE_DONE) {
+            // This is the success exit point.  Transfer was not aborted or
+            // cancelled.
+            session.setState(SerialFileTransferSession.State.END);
+            session.setEndTime(System.currentTimeMillis());
+        }
     }
 
     /**
@@ -232,12 +262,10 @@ public class XmodemSender implements Runnable {
         // Transfer has ended
         synchronized (session) {
             if (session.cancelFlag == 0) {
-                if (session.getState() == SerialFileTransferSession.State.TRANSFER) {
-                    // This is the success exit point.  Transfer was not
-                    // aborted or cancelled.
-                    session.setState(SerialFileTransferSession.State.END);
-                    session.setEndTime(System.currentTimeMillis());
-                }
+                // Success!
+                setFile.setEndTime(System.currentTimeMillis());
+                session.addInfoMessage("SUCCESS");
+                session.setState(SerialFileTransferSession.State.FILE_DONE);
             }
         }
     }

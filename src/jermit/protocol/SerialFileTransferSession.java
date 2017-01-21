@@ -28,8 +28,10 @@
  */
 package jermit.protocol;
 
+import java.io.File;
 import java.util.LinkedList;
 import java.util.List;
+import jermit.io.LocalFile;
 import jermit.io.LocalFileInterface;
 
 /**
@@ -52,9 +54,10 @@ public abstract class SerialFileTransferSession {
         INIT,
 
         /**
-         * Waiting for file information to be retrieved from the remote side.
+         * Waiting for file information to be sent to or retrieved from the
+         * remote side.
          */
-        DOWNLOAD_FILE_INFO,
+        FILE_INFO,
 
         /**
          * Transferrring a file.
@@ -251,10 +254,12 @@ public abstract class SerialFileTransferSession {
      *
      * @param uploadFiles list of files to upload
      */
-    protected SerialFileTransferSession(List<FileInfo> uploadFiles) {
+    protected SerialFileTransferSession(List<String> uploadFiles) {
         messages = new LinkedList<SerialFileTransferMessage>();
         files = new LinkedList<FileInfo>();
-        files.addAll(uploadFiles);
+        for (String file: uploadFiles) {
+            files.add(new FileInfo(new LocalFile(new File(file))));
+        }
         download = false;
 
         // TODO:
@@ -393,7 +398,7 @@ public abstract class SerialFileTransferSession {
         switch (state) {
         case INIT:
             return -1;
-        case DOWNLOAD_FILE_INFO:
+        case FILE_INFO:
         case TRANSFER:
         case FILE_DONE:
             millis = lastBlockMillis - startTime;

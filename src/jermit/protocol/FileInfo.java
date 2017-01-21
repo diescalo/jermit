@@ -51,7 +51,8 @@ public class FileInfo {
     protected long size;
 
     /**
-     * The modification time of the file.  Xmodem does not support this.
+     * The modification time of the file in milliseconds since the epoch.
+     * Xmodem does not support this.
      */
     protected long modtime;
 
@@ -109,6 +110,15 @@ public class FileInfo {
      */
     public long getSize() {
         return size;
+    }
+
+    /**
+     * Get the modification time of the file.
+     *
+     * @return the number of milliseconds since the start of the epoch
+     */
+    public long getModTime() {
+        return modtime;
     }
 
     /**

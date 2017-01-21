@@ -283,6 +283,19 @@ public class XmodemReceiver implements Runnable {
             fileOutput = null;
         }
 
+        if (file.getModTime() > 0) {
+            // This is a Ymodem transfer that supplied the file modification
+            // time.
+            try {
+                file.getLocalFile().setTime(file.getModTime());
+            } catch (IOException e) {
+                if (DEBUG) {
+                    System.err.println("Warning: unable to update file time");
+                    e.printStackTrace();
+                }
+            }
+        }
+
         // Transfer has ended
         synchronized (session) {
             if (session.cancelFlag == 0) {

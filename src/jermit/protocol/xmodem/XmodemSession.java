@@ -34,6 +34,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.RandomAccessFile;
 import java.util.LinkedList;
+import java.util.List;
 
 import jermit.io.EOFInputStream;
 import jermit.io.LocalFileInterface;
@@ -780,7 +781,7 @@ public class XmodemSession extends SerialFileTransferSession {
         int flavorType = -1;
         int timeoutCount = 0;
 
-        setCurrentStatus("INIT");
+        setCurrentStatus("FILE");
 
         while (cancelFlag == 0) {
 
@@ -870,19 +871,12 @@ public class XmodemSession extends SerialFileTransferSession {
      * Send the next data block to the remote side.  Note that EOFException
      * will not be caught here.
      *
-     * @param fileInput a stream that can read bytes from the local "file"
-     * @return true if the transfer should keep going, false if the file is
-     * at EOF.
+     * @param data the bytes for this block
+     * @return true if the data made it out, false if an unrecoverable error
+     * occurred.
      * @throws IOException if a java.io operation throws
      */
-    protected boolean sendNextBlock(final InputStream fileInput)
-        throws IOException {
-
-        // If true, definitely read data from the file.  If false, we are
-        // re-trying the last sent block.
-        boolean loadBlock = true;
-
-        byte [] data = null;
+    protected boolean sendDataBlock(final byte [] data) throws IOException {
 
         while (cancelFlag == 0) {
 
@@ -900,19 +894,6 @@ public class XmodemSession extends SerialFileTransferSession {
                 }
 
                 // Send the next data packet, wait for ACK.
-                if (loadBlock == true) {
-                    data = readFileBlock(fileInput);
-                    if (DEBUG) {
-                        System.err.printf("Read %d bytes from file\n",
-                            (data == null ? -1 : data.length));
-                    }
-                }
-
-                if (data == null) {
-                    return false;
-                }
-
-                // Got a file block, send it.
                 if (data.length == 128) {
                     output.write(SOH);
                 } else {
@@ -923,31 +904,16 @@ public class XmodemSession extends SerialFileTransferSession {
                 output.write(data);
                 writeChecksum(data);
 
-                setCurrentStatus("DATA");
-
                 int ackByte = input.read();
                 if (ackByte == ACK) {
                     if (DEBUG) {
                         System.err.println("ACK received");
                     }
-                    // All good, increment sequence and set to read the next
+                    // All good, increment sequence for the next outgoing
                     // block.
                     sequenceNumber++;
-                    loadBlock = true;
                     consecutiveErrors = 0;
-
-                    // Update stats
-                    synchronized (this) {
-                        FileInfo file = getCurrentFile();
-                        FileInfoModifier setFile = getCurrentFileInfoModifier();
-                        setFile.setBlocksTransferred(file.getBlocksTransferred()
-                            + 1);
-                        setFile.setBytesTransferred(file.getBytesTransferred() +
-                            data.length);
-                        blocksTransferred += 1;
-                        bytesTransferred  += data.length;
-                        lastBlockMillis    = System.currentTimeMillis();
-                    }
+                    return true;
 
                 } else if (ackByte == CAN) {
                     if (DEBUG) {
@@ -957,10 +923,7 @@ public class XmodemSession extends SerialFileTransferSession {
                     // Receiver has cancelled.
                     abort("TRANSFER CANCELLED BY RECEIVER");
                     cancelFlag = 1;
-                    fileInput.close();
-                    // cancel is now true, so return true to break the outer
-                    // loop.
-                    return true;
+                    return false;
                 } else {
                     if (DEBUG) {
                         System.err.println("! NAK " + bytesTransferred);
@@ -972,19 +935,17 @@ public class XmodemSession extends SerialFileTransferSession {
                         abort("TOO MANY ERRORS");
                         cancelFlag = 1;
 
-                        // cancel is now true, so return true to break the
-                        // outer loop.
-                        return true;
+                        return false;
                     }
 
                     // We either got NAK or something we don't expect.
                     // Resend the block.
-                    loadBlock = false;
+                    continue;
                 }
 
             } catch (ReadTimeoutException e) {
                 if (cancelFlag != 0) {
-                    return true;
+                    return false;
                 }
                 timeout();
 
@@ -993,6 +954,54 @@ public class XmodemSession extends SerialFileTransferSession {
             }
 
         } // while (cancelFlag == 0)
+
+        // User cancelled somewhere down the line.
+        return false;
+    }
+
+    /**
+     * Send the next data block to the remote side.  Note that EOFException
+     * will not be caught here.
+     *
+     * @param fileInput a stream that can read bytes from the local "file"
+     * @return true if the transfer should keep going, false if the file is
+     * at EOF.
+     * @throws IOException if a java.io operation throws
+     */
+    protected boolean sendNextBlock(final InputStream fileInput)
+        throws IOException {
+
+        // Send the next data packet, wait for ACK.
+        byte [] data = readFileBlock(fileInput);
+        if (DEBUG) {
+            System.err.printf("Read %d bytes from file\n",
+                (data == null ? -1 : data.length));
+        }
+
+        if (data == null) {
+            // No more file data, break out.
+            return false;
+        }
+
+        if (sendDataBlock(data) == true) {
+            // All good, increment stats.
+            synchronized (this) {
+                FileInfo file = getCurrentFile();
+                FileInfoModifier setFile = getCurrentFileInfoModifier();
+                setFile.setBlocksTransferred(file.getBlocksTransferred() + 1);
+                setFile.setBytesTransferred(file.getBytesTransferred() +
+                    data.length);
+                blocksTransferred += 1;
+                bytesTransferred  += data.length;
+                lastBlockMillis    = System.currentTimeMillis();
+            }
+
+        } else {
+            // Network I/O problem, or user cancelled.  Allow the fallthrough
+            // to return true so that uploadFile() does not try to send the
+            // EOT.
+            fileInput.close();
+        }
 
         // We can send another block.
         return true;
@@ -1075,17 +1084,23 @@ public class XmodemSession extends SerialFileTransferSession {
      * entry
      */
     public XmodemSession(final Flavor flavor, final InputStream input,
-        final OutputStream output, final LinkedList<FileInfo> uploadFiles) {
+        final OutputStream output, final List<String> uploadFiles) {
 
         super(uploadFiles);
-        if (uploadFiles.size() != 1) {
+        if ((uploadFiles.size() != 1) &&
+            (!(this instanceof jermit.protocol.ymodem.YmodemSession))
+        ) {
+            // This is a bit ugly. :-( YmodemSession uses this constructor
+            // (yay OOP), but it is also a public Xmodem constructor.  Check
+            // to see if this is being used by Ymodem, and if so allow
+            // multiple files.
             throw new IllegalArgumentException("Xmodem can only upload one " +
                 "file at a time");
         }
         this.flavor      = flavor;
         this.protocol    = Protocol.XMODEM;
         this.output      = output;
-        this.currentFile = 0;
+        this.currentFile = -1;
 
         if (input instanceof TimeoutInputStream) {
             // Someone has already set the timeout.  Keep their value.

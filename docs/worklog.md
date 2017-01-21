@@ -1,3 +1,17 @@
+January 21, 2017
+
+Ymodem send is now working.  The code changes were rather small, just
+adding a method to send the next block 0 and minor refactoring of
+uploadFile().  Now all that's left is the UI updates to use it.
+
+Comparing raw line counts of the Java Xmodem base and the Qodem base,
+we are pretty close.  However, the Java code is split between
+package-writeable and public-read-only methods, factored reasonably
+nicely so as to have much less duplicated blocks (especially error
+handling), and no gorped up select() and chunking stuff.  I think when
+we get to Zmodem and Kermit it will be significantly smaller in the
+end.
+
 January 20, 2017
 
 Ymodem receive is working fine now.  Nicely enough -G mode worked with

@@ -8,13 +8,10 @@ Jermit TODO List
   Xmodem:
     - 2 CANs cancels, not 1
 
-
-  Ymodem:
-    YmodemSender
-
   ui.rzsz:
     - Xmodem send
     - Xmodem receive (as separate driver)
+    - Ymodem send/receive
 
   ui.qodem:
     - Ymodem send/receive

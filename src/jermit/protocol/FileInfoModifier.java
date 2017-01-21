@@ -60,6 +60,15 @@ public class FileInfoModifier {
     }
 
     /**
+     * Set the modification time of the file.
+     *
+     * @param modtime the number of milliseconds since the start of the epoch
+     */
+    public void setModTime(final long modtime) {
+        fileInfo.modtime = modtime;
+    }
+
+    /**
      * Set the number of bytes successfully transferred for this file.
      *
      * @param bytesTransferred the number of bytes transferred

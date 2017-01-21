@@ -28,12 +28,14 @@
  */
 package jermit.protocol.ymodem;
 
+import java.io.EOFException;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.UnsupportedEncodingException;
 import java.util.LinkedList;
+import java.util.List;
 
 import jermit.io.EOFInputStream;
 import jermit.io.LocalFile;
@@ -261,7 +263,7 @@ public class YmodemSession extends XmodemSession {
      * entry
      */
     public YmodemSession(final YFlavor yFlavor, final InputStream input,
-        final OutputStream output, final LinkedList<FileInfo> uploadFiles) {
+        final OutputStream output, final List<String> uploadFiles) {
 
         super((yFlavor == YmodemSession.YFlavor.VANILLA ?
                 XmodemSession.Flavor.X_1K : XmodemSession.Flavor.X_1K_G),
@@ -387,6 +389,7 @@ public class YmodemSession extends XmodemSession {
         int begin = 0;
         String filename = null;
         long fileSize = -1;
+        long fileModTime = -1;
         for (int i = begin; i < data.length; i++) {
             if (data[i] == ' ') {
                 if ((i - begin) > 1) {
@@ -399,6 +402,12 @@ public class YmodemSession extends XmodemSession {
                             String fileSizeString = new String(data, begin,
                                 i - begin, "UTF-8");
                             fileSize = Long.parseLong(fileSizeString);
+                            begin = i + 1;
+                        } else if (fileModTime == -1) {
+                            // This is the file size.
+                            String fileModTimeString = new String(data, begin,
+                                i - begin, "UTF-8");
+                            fileModTime = Long.parseLong(fileModTimeString, 8);
 
                             // We are done looking for values.
                             break;
@@ -445,6 +454,7 @@ public class YmodemSession extends XmodemSession {
         if (DEBUG) {
             System.err.println("Name: '" + filename + "'");
             System.err.println("Size: " + fileSize + " bytes");
+            System.err.println("Time: " + fileModTime + " seconds");
         }
 
         if (filename == null) {
@@ -496,6 +506,7 @@ public class YmodemSession extends XmodemSession {
             setState(SerialFileTransferSession.State.TRANSFER);
             FileInfoModifier setFile = getCurrentFileInfoModifier();
 
+            setFile.setModTime(fileModTime * 1000);
             setFile.setStartTime(System.currentTimeMillis());
             setFile.setBlockSize(getBlockSize());
             setFile.setBytesTotal(fileSize);
@@ -508,6 +519,116 @@ public class YmodemSession extends XmodemSession {
 
         // Good to go on another download.
         return true;
+    }
+
+    /**
+     * Read the requested transfer type and downgrade accordingly.  Note that
+     * EOFException will not be caught here.
+     */
+    protected boolean startYmodemUpload() {
+        try {
+            super.startUpload();
+        } catch (IOException e) {
+            abort("NETWORK I/O ERROR");
+            return false;
+        }
+
+        // Modify the Ymodem flavor based on the Xmodem flavor.
+        switch (getFlavor()) {
+        case X_1K_G:
+            // 1K/G = Ymodem/G
+            yFlavor = YmodemSession.YFlavor.Y_G;
+            break;
+        default:
+            // All others: try Ymodem vanilla.  Really these should only be
+            // CRC or 1K, but we will try even with Xmodem vanilla.
+            yFlavor = YmodemSession.YFlavor.VANILLA;
+            break;
+        }
+
+        if (cancelFlag == 0) {
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Switch to the next file to upload, send the special sequence 0 Ymodem
+     * packet to the remote side, and wait for the ACK.
+     *
+     * @return true if the transfer is ready to upload another file
+     */
+    protected boolean sendBlock0() {
+
+        synchronized (this) {
+            setState(SerialFileTransferSession.State.FILE_INFO);
+        }
+
+        sequenceNumber = 0;
+
+        try {
+            byte [] data = null;
+            currentFile++;
+            if (currentFile == files.size()) {
+                if (DEBUG) {
+                    System.err.println("No more files");
+                }
+                // End of transfer.
+                data = new byte[128];
+            } else {
+                FileInfo file = getCurrentFile();
+                String filename = file.getLocalName();
+                String filePart = (new File(filename)).getName();
+                byte [] name = filePart.getBytes("UTF-8");
+                byte [] size = Long.toString(file.getSize()).getBytes("UTF-8");
+                byte [] modtime = Long.toOctalString(file.
+                    getModTime() / 1000).getBytes("UTF-8");
+                if (name.length + size.length + modtime.length > 110) {
+                    data = new byte[1024];
+                } else {
+                    data = new byte[128];
+                }
+                System.arraycopy(name, 0, data, 0, name.length);
+                System.arraycopy(size, 0, data, name.length + 1, size.length);
+                data[name.length + size.length + 1] = ' ';
+                System.arraycopy(modtime, 0, data,
+                    name.length + 1 + size.length + 1, modtime.length);
+            }
+
+            if (DEBUG) {
+                System.err.println("Block 0 data:");
+                for (int i = 0; i < data.length; i++) {
+                    System.err.printf("%02x '%c' ", data[i], data[i]);
+                    if (i % 8 == 0) {
+                        System.err.println();
+                    }
+                }
+                System.err.println();
+            }
+
+            boolean rc = sendDataBlock(data);
+            if (currentFile == files.size()) {
+                // Always return false, we are done whether or not we had a
+                // network error.
+                return false;
+            }
+            return rc;
+        } catch (UnsupportedEncodingException e) {
+            abort("LOCAL JVM ERROR: NO SUPPORT FOR UTF-8");
+            cancelFlag = 1;
+            return false;
+        } catch (EOFException e) {
+            abort("UNEXPECTED END OF TRANSMISSION");
+            cancelFlag = 1;
+            return false;
+        } catch (IOException e) {
+            if (DEBUG) {
+                e.printStackTrace();
+            }
+            abort("NETWORK I/O ERROR");
+            cancelFlag = 1;
+            return false;
+        }
     }
 
 }
