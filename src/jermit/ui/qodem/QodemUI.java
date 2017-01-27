@@ -38,6 +38,9 @@ import jermit.protocol.SerialFileTransferSession;
 import jermit.protocol.xmodem.XmodemReceiver;
 import jermit.protocol.xmodem.XmodemSender;
 import jermit.protocol.xmodem.XmodemSession;
+import jermit.protocol.ymodem.YmodemReceiver;
+import jermit.protocol.ymodem.YmodemSender;
+import jermit.protocol.ymodem.YmodemSession;
 
 import jermit.ui.qodem.jexer.bits.Color;
 import jermit.ui.qodem.jexer.bits.CellAttributes;
@@ -63,6 +66,8 @@ public class QodemUI implements Runnable {
     // function directly.  Note package private access.
     XmodemSender xmodemSender;
     XmodemReceiver xmodemReceiver;
+    YmodemSender ymodemSender;
+    YmodemReceiver ymodemReceiver;
 
     /**
      * Input events are processed by this Terminal.
@@ -186,6 +191,12 @@ public class QodemUI implements Runnable {
                     }
                     if (xmodemSender != null) {
                         xmodemSender.cancelTransfer(true);
+                    }
+                    if (ymodemReceiver != null) {
+                        ymodemReceiver.cancelTransfer(true);
+                    }
+                    if (ymodemSender != null) {
+                        ymodemSender.cancelTransfer(true);
                     }
                 }
             }

@@ -44,6 +44,7 @@ import jermit.protocol.FileInfo;
 import jermit.protocol.FileInfoModifier;
 import jermit.protocol.Protocol;
 import jermit.protocol.SerialFileTransferSession;
+import jermit.protocol.ymodem.YmodemSession;
 
 /**
  * XmodemSession encapsulates all the state used by an upload or download
@@ -347,8 +348,12 @@ public class XmodemSession extends SerialFileTransferSession {
         addErrorMessage("TIMEOUT");
 
         FileInfo file = getCurrentFile();
-        FileInfoModifier setFile = getCurrentFileInfoModifier();
-        setFile.setErrorCount(file.getErrorCount() + 1);
+        if (file != null) {
+            // File can be null if we are still waiting to read block 0 for
+            // Ymodem.
+            FileInfoModifier setFile = getCurrentFileInfoModifier();
+            setFile.setErrorCount(file.getErrorCount() + 1);
+        }
         consecutiveErrors++;
         if (consecutiveErrors == 10) {
             // Cancel this transfer.
@@ -374,8 +379,12 @@ public class XmodemSession extends SerialFileTransferSession {
         input.skip(input.available());
 
         FileInfo file = getCurrentFile();
-        FileInfoModifier setFile = getCurrentFileInfoModifier();
-        setFile.setErrorCount(file.getErrorCount() + 1);
+        if (file != null) {
+            // File can be null if we are still waiting to read block 0 for
+            // Ymodem.
+            FileInfoModifier setFile = getCurrentFileInfoModifier();
+            setFile.setErrorCount(file.getErrorCount() + 1);
+        }
         consecutiveErrors++;
         if (consecutiveErrors == 10) {
             // Cancel this transfer.
@@ -387,7 +396,6 @@ public class XmodemSession extends SerialFileTransferSession {
         if (DEBUG) {
             System.err.println("NAK " + bytesTransferred);
         }
-
         output.write(NAK);
         output.flush();
     }
@@ -449,8 +457,6 @@ public class XmodemSession extends SerialFileTransferSession {
         //   2   - 255 - Seq
         //   3   - [ ... data ... ]
         //   N   - checksum or CRC
-
-        FileInfo file = getCurrentFile();
 
         int blockSize = 128;
 
@@ -622,6 +628,19 @@ public class XmodemSession extends SerialFileTransferSession {
                 return data;
 
             } catch (ReadTimeoutException e) {
+                if (this instanceof YmodemSession) {
+                    if (DEBUG) {
+                        System.err.println("Ymodem - kick it off: " +
+                            getState());
+                    }
+                    if (getState() == State.FILE_INFO) {
+                        // We are on block 0.  Need to re-send the 'C' or 'G'
+                        // to get the Ymodem receive going.
+                        sendNCG();
+                    }
+                    continue;
+                }
+
                 purge("TIMEOUT");
                 if ((flavor == Flavor.X_1K_G) && (sequenceNumber == 2)) {
                     // The remote side is not honoring 1K/G mode.  Downgrade
@@ -814,7 +833,11 @@ public class XmodemSession extends SerialFileTransferSession {
                             continue;
                         } else {
                             // Downgrade to CRC and send the first packet.
-                            addErrorMessage("DOWNGRADE TO XMODEM-CRC");
+                            if (this instanceof YmodemSession) {
+                                addErrorMessage("DOWNGRADE TO VANILLA YMODEM");
+                            } else {
+                                addErrorMessage("DOWNGRADE TO XMODEM-CRC");
+                            }
                             flavor = Flavor.CRC;
                         }
                     }
@@ -1087,9 +1110,7 @@ public class XmodemSession extends SerialFileTransferSession {
         final OutputStream output, final List<String> uploadFiles) {
 
         super(uploadFiles);
-        if ((uploadFiles.size() != 1) &&
-            (!(this instanceof jermit.protocol.ymodem.YmodemSession))
-        ) {
+        if ((uploadFiles.size() != 1) && (!(this instanceof YmodemSession))) {
             // This is a bit ugly. :-( YmodemSession uses this constructor
             // (yay OOP), but it is also a public Xmodem constructor.  Check
             // to see if this is being used by Ymodem, and if so allow

@@ -120,7 +120,7 @@
         version="true"
         use="true"
         classpathref="project.classpath"
-        access="protected"
+        access="public"
         windowtitle="Jermit - API docs">
 
       <fileset dir="${src.dir}" defaultexcludes="yes">

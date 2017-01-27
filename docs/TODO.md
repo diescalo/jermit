@@ -1,26 +1,18 @@
 Jermit TODO List
 ================
 
-0.0.1:
+0.0.2:
 
   Status line
 
   Xmodem:
     - 2 CANs cancels, not 1
 
-  ui.rzsz:
-    - Xmodem send
-    - Xmodem receive (as separate driver)
-    - Ymodem send/receive
-
-  ui.qodem:
-    - Ymodem send/receive
-
   bin/jermit
-    - how does one package a nicer script for Windows?
+    - Find jar
 
 
-0.0.2:
+0.0.3:
 
   Kermit:
     KermitSession
@@ -28,7 +20,7 @@ Jermit TODO List
     KermitSender
 
 
-0.0.3:
+0.0.4:
 
   Zmodem:
     ZmodemSession
@@ -40,7 +32,7 @@ Jermit TODO List
     KermitServer
 
 
-0.0.4:
+0.0.5:
 
   SerialURLConnection
     XmodemURLConnection
@@ -49,7 +41,7 @@ Jermit TODO List
     KermitURLConnection
 
 
-0.0.5:
+0.0.6:
 
   jermit.ui.kermit.Main
     - looks like C-Kermit
@@ -57,7 +49,7 @@ Jermit TODO List
     - same command-line options
 
 
-0.0.6:
+0.0.7:
 
   Test under Eclipse
 
@@ -68,7 +60,7 @@ Jermit TODO List
 
   Bug hunt
 
-0.0.7:
+0.0.8:
 
   Final release to 1.0.0
 

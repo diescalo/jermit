@@ -496,7 +496,7 @@ public class YmodemSession extends XmodemSession {
 
             // Now perform the stats update.  Since we have the file size we
             // can do it all though.
-            if (getState() == SerialFileTransferSession.State.INIT) {
+            if (getState() == SerialFileTransferSession.State.FILE_INFO) {
                 // The first file, set the total start time.
                 startTime = file.getStartTime();
             }
@@ -560,10 +560,6 @@ public class YmodemSession extends XmodemSession {
      */
     protected boolean sendBlock0() {
 
-        synchronized (this) {
-            setState(SerialFileTransferSession.State.FILE_INFO);
-        }
-
         sequenceNumber = 0;
 
         try {
@@ -576,6 +572,9 @@ public class YmodemSession extends XmodemSession {
                 // End of transfer.
                 data = new byte[128];
             } else {
+                synchronized (this) {
+                    setState(SerialFileTransferSession.State.FILE_INFO);
+                }
                 FileInfo file = getCurrentFile();
                 String filename = file.getLocalName();
                 String filePart = (new File(filename)).getName();

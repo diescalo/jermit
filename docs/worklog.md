@@ -1,3 +1,9 @@
+January 27, 2017
+
+Ymodem send/receive is working, though the Qodem UI screen is
+incomplete and fragile.  But the base protocols are there and I am
+ready to pack it in for a short while.  Tagging this release 0.0.1.
+
 January 21, 2017
 
 Ymodem send is now working.  The code changes were rather small, just

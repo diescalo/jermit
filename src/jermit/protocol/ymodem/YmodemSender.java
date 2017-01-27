@@ -116,7 +116,7 @@ public class YmodemSender extends XmodemSender implements Runnable {
 
         for (;;) {
             if (DEBUG) {
-                System.out.println("Waiting for NCG...");
+                System.err.println("Waiting for NCG...");
             }
 
             if (session.startYmodemUpload() == false) {
@@ -136,11 +136,15 @@ public class YmodemSender extends XmodemSender implements Runnable {
         } // for (;;)
 
         // Switch to the next file.
-        if (session.getState() == SerialFileTransferSession.State.FILE_DONE) {
-            // This is the success exit point for one file.  Transfer was not
-            // aborted or cancelled.
-            session.setState(SerialFileTransferSession.State.END);
-            session.setEndTime(System.currentTimeMillis());
+        synchronized (session) {
+            if (session.getState() == SerialFileTransferSession.State.FILE_DONE) {
+                session.addInfoMessage("ALL FILES TRANSFERRED");
+
+                // This is the success exit point for a batch.  Transfer was
+                // not aborted or cancelled.
+                session.setState(SerialFileTransferSession.State.END);
+                session.setEndTime(System.currentTimeMillis());
+            }
         }
 
     }

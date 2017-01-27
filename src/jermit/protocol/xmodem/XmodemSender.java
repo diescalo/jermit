@@ -264,7 +264,6 @@ public class XmodemSender implements Runnable {
             if (session.cancelFlag == 0) {
                 // Success!
                 setFile.setEndTime(System.currentTimeMillis());
-                session.addInfoMessage("SUCCESS");
                 session.setState(SerialFileTransferSession.State.FILE_DONE);
             }
         }

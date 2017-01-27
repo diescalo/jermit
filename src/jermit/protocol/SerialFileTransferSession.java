@@ -446,6 +446,9 @@ public abstract class SerialFileTransferSession {
      * transfer has not yet started.
      */
     public double getPercentComplete() {
+        if (currentFile == files.size()) {
+            return 100.0;
+        }
         FileInfo file = getCurrentFile();
         if (file != null) {
             if ((protocol == Protocol.XMODEM) && (download == true)) {
@@ -466,6 +469,15 @@ public abstract class SerialFileTransferSession {
     public synchronized FileInfo getCurrentFile() {
         if (state == State.INIT) {
             return null;
+        }
+        if ((state == State.FILE_INFO) && (download == true)) {
+            // We do not yet have a file to download.
+            return null;
+        }
+        if (currentFile == files.size()) {
+            // The transfer thread has finished a batch upload.  Show the
+            // last completed file rather than nothing.
+            return files.get(currentFile - 1);
         }
         return files.get(currentFile);
     }

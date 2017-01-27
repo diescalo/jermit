@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # This script tries to find a working JVM and jermit.jar, and then runs
-# the rzsz Send UI in Xmodem mode.
+# the rzsz Receive UI in Xmodem mode.
 #
 # -----------------------------------------------------------------------------
 # The MIT License (MIT)
@@ -33,6 +33,6 @@
 
 JERMIT_JAR=build/jar/jermit.jar
 JAVA=java
-UI=jermit.ui.rzsz.Send
+UI=jermit.ui.rzsz.Receive
 
 $JAVA -cp $JERMIT_JAR $UI --xmodem $*

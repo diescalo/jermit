@@ -114,6 +114,9 @@ public class YmodemReceiver extends XmodemReceiver implements Runnable {
             if (DEBUG) {
                 System.out.println("Sending NCG...");
             }
+            synchronized (session) {
+                session.setState(SerialFileTransferSession.State.FILE_INFO);
+            }
 
             if (session.sendNCG() == false) {
                 // Failed to handshake, bail out.
@@ -132,11 +135,15 @@ public class YmodemReceiver extends XmodemReceiver implements Runnable {
         } // for (;;)
 
         // Switch to the next file.
-        if (session.getState() == SerialFileTransferSession.State.FILE_DONE) {
-            // This is the success exit point for one file.  Transfer was not
-            // aborted or cancelled.
-            session.setState(SerialFileTransferSession.State.END);
-            session.setEndTime(System.currentTimeMillis());
+        synchronized (session) {
+            if (session.getState() == SerialFileTransferSession.State.FILE_INFO) {
+                session.addInfoMessage("ALL FILES TRANSFERRED");
+
+                // This is the success exit point for a batch.  Transfer was
+                // not aborted or cancelled.
+                session.setState(SerialFileTransferSession.State.END);
+                session.setEndTime(System.currentTimeMillis());
+            }
         }
 
     }

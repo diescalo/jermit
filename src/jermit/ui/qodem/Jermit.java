@@ -40,6 +40,9 @@ import jermit.protocol.SerialFileTransferSession;
 import jermit.protocol.xmodem.XmodemReceiver;
 import jermit.protocol.xmodem.XmodemSender;
 import jermit.protocol.xmodem.XmodemSession;
+import jermit.protocol.ymodem.YmodemReceiver;
+import jermit.protocol.ymodem.YmodemSender;
+import jermit.protocol.ymodem.YmodemSession;
 import jermit.ui.posix.Stty;
 
 /**
@@ -65,6 +68,11 @@ public class Jermit {
      * upload.
      */
     private boolean download = false;
+
+    /**
+     * The path to download files to.
+     */
+    private String downloadPath = System.getProperty("user.dir");
 
     /**
      * If true, use a 16-bit CRC.  For Xmodem, this means support Xmodem-CRC
@@ -96,6 +104,8 @@ public class Jermit {
         Thread uiThread = null;
         XmodemReceiver rx = null;
         XmodemSender sx = null;
+        YmodemReceiver rb = null;
+        YmodemSender sb = null;
 
         switch (protocol) {
 
@@ -143,9 +153,25 @@ public class Jermit {
             }
             break;
         case YMODEM:
-            // TODO
-            System.err.println("Ymodem not yet supported.");
-            System.exit(10);
+
+            if (download == true) {
+                // Use vanilla only.  rb does not have a way to specify -G.
+                YmodemSession.YFlavor yFlavor = YmodemSession.YFlavor.VANILLA;
+
+                rb = new YmodemReceiver(System.in, System.out, downloadPath);
+                session = rb.getSession();
+                transferThread = new Thread(rb);
+
+            } else {
+                // Allow -G.  This will automatically fallback to vanilla if
+                // the receiver initiates with 'C' instead of 'G'.
+                YmodemSession.YFlavor yFlavor = YmodemSession.YFlavor.Y_G;
+
+                sb = new YmodemSender(yFlavor, System.in, System.out, fileArgs);
+                session = sb.getSession();
+                transferThread = new Thread(sb);
+            }
+            break;
         case ZMODEM:
             // TODO
             System.err.println("Zmodem not yet supported.");
@@ -165,6 +191,8 @@ public class Jermit {
         QodemUI ui = new QodemUI(session);
         ui.xmodemReceiver = rx;
         ui.xmodemSender = sx;
+        ui.ymodemReceiver = rb;
+        ui.ymodemSender = sb;
         uiThread = new Thread(ui);
         uiThread.start();
         transferThread.start();
@@ -318,7 +346,7 @@ public class Jermit {
                 if (args[i].startsWith("-")) {
                     // This is an argument, process it.
                     if (processArg(args[i]) == false) {
-                        if (i < args.length - 2) {
+                        if (i < args.length - 1) {
                             processTwoArgs(args[i], args[i + 1]);
                             i++;
                         } else {
@@ -332,12 +360,18 @@ public class Jermit {
                 }
             } else {
                 // "--" was seen, so this is a filename.
-                    fileArgs.add(args[i]);
+                fileArgs.add(args[i]);
             }
         } // for (int i = 0; i < args.length; i++)
 
-        if (fileArgs.size() == 0) {
-            System.err.println("jermit: need at least one file to transfer");
+        if ((fileArgs.size() == 0) && (protocol == Protocol.XMODEM)) {
+            System.err.println("jermit: xmodem needs filename to receive to");
+            System.err.println("Try jermit --help for more information.");
+            System.exit(2);
+        }
+
+        if ((fileArgs.size() == 0) && (download == false)) {
+            System.err.println("jermit: send needs at least one file to transfer");
             System.err.println("Try jermit --help for more information.");
             System.exit(2);
         }

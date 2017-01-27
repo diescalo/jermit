@@ -33,9 +33,9 @@ import java.util.LinkedList;
 import jermit.protocol.FileInfo;
 import jermit.protocol.Protocol;
 import jermit.protocol.SerialFileTransferSession;
-import jermit.protocol.xmodem.XmodemSender;
+import jermit.protocol.xmodem.XmodemReceiver;
 import jermit.protocol.xmodem.XmodemSession;
-import jermit.protocol.ymodem.YmodemSender;
+import jermit.protocol.ymodem.YmodemReceiver;
 import jermit.protocol.ymodem.YmodemSession;
 import jermit.ui.posix.Stty;
 
@@ -44,7 +44,7 @@ import jermit.ui.posix.Stty;
  * intended to be a drop-in replacement for (l)rzsz for use by other
  * programs.
  */
-public class Send {
+public class Receive {
 
     /**
      * The protocol to select.  Most people want Zmodem, so default to that.
@@ -53,14 +53,24 @@ public class Send {
     private Protocol protocol = Protocol.ZMODEM;
 
     /**
-     * Default block size for transfer.  For Xmodem, this is 128 bytes.
+     * Whether or not to use CRC for Xmodem.  By default we will not.
      */
-    private int blockSize = 128;
+    private boolean crc = false;
 
     /**
-     * The list of filenames read from the command line.
+     * The filename to download (Xmodem only).
      */
-    private LinkedList<String> fileArgs;
+    private String xmodemFile = null;
+
+    /**
+     * The path to download files to.
+     */
+    private String downloadPath = System.getProperty("user.dir");
+
+    /**
+     * If true, permit overwrite of files.
+     */
+    private boolean overwrite = false;
 
     /**
      * How long to sleep in millis before starting a transfer.
@@ -92,37 +102,33 @@ public class Send {
 
         switch (protocol) {
         case XMODEM:
-            // Allow CRC.  This will automatically fallback to vanilla if the
-            // receiver initiates with NAK instead of 'C'.  We can't default
-            // to 1K because we can't guarantee that the receiver will know
-            // how to handle it.
-            XmodemSession.Flavor flavor = XmodemSession.Flavor.CRC;
-            if (blockSize == 1024) {
-                // Permit 1K.  This will fallback to vanilla if they use NAK.
+            // Default to vanilla.  If CRC is specified then switch to 1K.
+            XmodemSession.Flavor flavor = XmodemSession.Flavor.VANILLA;
+            if (crc == true) {
+                // Permit 1K.
                 flavor = XmodemSession.Flavor.X_1K;
             }
 
-            // Open only the first file and send it.
-            XmodemSender sx = new XmodemSender(flavor, System.in, System.out,
-                fileArgs.get(0));
+            // Open only the first file and receive data for it.
+            XmodemReceiver rx = new XmodemReceiver(flavor, System.in,
+                System.out, xmodemFile, overwrite);
 
-            session = sx.getSession();
+            session = rx.getSession();
             log = new SerialSessionLogger(session);
             sessionStatusThread = new Thread(log);
-            transferThread = new Thread(sx);
+            transferThread = new Thread(rx);
             break;
         case YMODEM:
-            // Allow -G.  This will automatically fallback to vanilla if the
-            // receiver initiates with 'C' instead of 'G'.
-            YmodemSession.YFlavor yFlavor = YmodemSession.YFlavor.Y_G;
+            // Use vanilla only.  rb does not have a way to specify -G.
+            YmodemSession.YFlavor yFlavor = YmodemSession.YFlavor.VANILLA;
 
-            YmodemSender sb = new YmodemSender(yFlavor, System.in, System.out,
-                fileArgs);
+            YmodemReceiver rb = new YmodemReceiver(System.in, System.out,
+                downloadPath);
 
-            session = sb.getSession();
+            session = rb.getSession();
             log = new SerialSessionLogger(session);
             sessionStatusThread = new Thread(log);
-            transferThread = new Thread(sb);
+            transferThread = new Thread(rb);
             break;
         case ZMODEM:
             // TODO
@@ -188,55 +194,44 @@ public class Send {
      */
     private void showUsage() {
         System.out.println("jermit version " + jermit.Version.VERSION);
-        System.out.println("Usage: {sz|sb|sx} [options] file ...");
-        System.out.println("Send file(s) with ZMODEM/YMODEM/XMODEM/KERMIT protocol");
+        System.out.println("Usage: {rz|rb|rx} [options] [filename.if.xmodem]");
+        System.out.println("Receive files with ZMODEM/YMODEM/XMODEM/KERMIT protocol");
         System.out.println("    (X) = option applies to XMODEM only");
         System.out.println("    (Y) = option applies to YMODEM only");
         System.out.println("    (Z) = option applies to ZMODEM only");
         System.out.println("    (K) = option applies to KERMIT only");
         System.out.println("  -+, --append                append to existing destination file (Z/K)");
-        System.out.println("  -2, --twostop               IGNORED");
-        System.out.println("  -4, --try-4k                IGNORED");
-        System.out.println("      --start-4k              IGNORED");
-        System.out.println("  -8, --try-8k                IGNORED");
-        System.out.println("      --start-8k              IGNORED");
         System.out.println("  -a, --ascii                 IGNORED");
         System.out.println("  -b, --binary                IGNORED");
         System.out.println("  -B, --bufsize N             IGNORED");
-        System.out.println("  -c, --command COMMAND       IGNORED");
-        System.out.println("  -C, --command-tries N       IGNORED");
-        System.out.println("  -d, --dot-to-slash          IGNORED");
+        System.out.println("  -c, --with-crc              Use 16 bit CRC (X)");
+        System.out.println("  -C, --allow-remote-commands IGNORED");
+        System.out.println("  -D, --null                  IGNORED");
         System.out.println("      --delay-startup N       sleep N seconds before doing anything");
-        System.out.println("  -e, --escape                escape all control characters (Z)");
-        System.out.println("  -E, --rename                force receiver to rename files it already has");
-        System.out.println("  -f, --full-path             IGNORED");
-        System.out.println("  -i, --immediate-command CMD IGNORED");
+        System.out.println("  -e, --escape                escape control characters (Z)");
+        System.out.println("  -E, --rename                rename any files already existing");
+        System.out.println("      --errors                IGNORED");
         System.out.println("  -h, --help                  print this usage message");
-        System.out.println("  -k, --1k                    send 1024 byte packets (X)");
         System.out.println("      --kermit                use KERMIT protocol");
-        System.out.println("  -L, --packetlen N           limit subpacket length to N bytes (Z)");
-        System.out.println("  -l, --framelen N            limit frame length to N bytes (l>=L) (Z)");
         System.out.println("  -m, --min-bps N             IGNORED");
         System.out.println("  -M, --min-bps-time N        IGNORED");
-        System.out.println("  -n, --newer                 send file if source newer (Z/K)");
-        System.out.println("  -N, --newer-or-longer       send file if source newer or longer (Z/K)");
-        System.out.println("  -o, --16-bit-crc            use 16 bit CRC instead of 32 bit CRC (Z)");
+        System.out.println("      --o-sync                IGNORED");
         System.out.println("  -O, --disable-timeouts      IGNORED");
-        System.out.println("  -p, --protect               protect existing destination file (Z/K)");
-        System.out.println("  -q, --quiet                 quiet (no progress reports)");
-        System.out.println("  -r, --resume                resume interrupted file transfer (Z/K)");
+        System.out.println("  -p, --protect               protect existing files (Z/K)");
+        System.out.println("  -q, --quiet                 quiet, no progress reports");
+        System.out.println("  -r, --resume                try to resume interrupted file transfer (Z/K)");
         System.out.println("  -R, --restricted            IGNORED");
         System.out.println("  -s, --stop-at {HH:MM|+N}    stop transmission at HH:MM or in N seconds");
-        System.out.println("  -t, --timeout TIM           change timeout to TIM tenths of seconds (Z/K)");
+        System.out.println("  -S, --timesync              IGNORED");
+        System.out.println("      --syslog=off            IGNORED");
         System.out.println("      --tcp-server            IGNORED");
         System.out.println("      --tcp-client ADDR:PORT  IGNORED");
-        System.out.println("  -u, --unlink                unlink file after transmission");
+        System.out.println("  -u, --keep-uppercase        IGNORED");
         System.out.println("  -U, --unrestrict            IGNORED");
         System.out.println("  -v, --verbose               be verbose, provide debugging information");
         System.out.println("  -w, --windowsize N          Window is N bytes (Z)");
         System.out.println("  -X, --xmodem                use XMODEM protocol");
-        System.out.println("  -y, --overwrite             overwrite existing files");
-        System.out.println("  -Y, --overwrite-or-skip     overwrite existing files, else skip");
+        System.out.println("  -y, --overwrite             Yes, clobber existing file if any");
         System.out.println("      --ymodem                use YMODEM protocol");
         System.out.println("  -Z, --zmodem                use ZMODEM protocol");
         System.out.println("");
@@ -252,37 +247,33 @@ public class Send {
      */
     private boolean processArg(final String arg) {
         /*
-         * The following sz/sb/sx arguments will be recognized but ignored.
+         * The following rz/rb/rx arguments will be recognized but ignored.
          *
          * These options are ignored for the following reasons:
          *
          *  1. They specify serial port behavior.
          *
-         *  2. They cause one side to execute a command.
+         *  2. They specify POSIX C file flags.
+         *
+         *  3. They cause one side to execute a command.
          *
          *  3. They are unique to (l)rzsz (e.g. the tcp options,
          *     ascii/binary).
          *
-         *   -2, --twostop
-         *   -4, --try-4k
-         *   --start-4k
-         *   -8, --try-8k
-         *   --start-8k
          *   -a, --ascii
          *   -b, --binary
          *   -B NUMBER, --bufsize NUMBER
-         *   -c COMMAND, --command COMMAND
-         *   -C N, --command-tries N
-         *   -d, --dot-to-slash
-         *   -f, --full-path
-         *   -i COMMAND, --immediate-command COMMAND
+         *   -C, --allow-remote-commands
+         *   -D, --null
+         *   --errors
          *   -m N, --min-bps N
          *   -M N, --min-bps-time
+         *   --o-sync
          *   -O, --disable-timeouts
          *   -R, --restricted
          *   -S, --timesync
          *   --syslog[=off]
-         *   -T, --turbo
+         *   -u, --keep-uppercase
          *   -U, --unrestrict
          *   --tcp
          *   --tcp-client ADDRESS:PORT
@@ -290,33 +281,26 @@ public class Send {
          */
 
         // One-argument parameters ignored.
-        if (arg.equals("-2") || arg.equals("--twostop") ||
-            arg.equals("-4") || arg.equals("--try-4k") ||
-            arg.equals("--start-4k") ||
-            arg.equals("-8") || arg.equals("--try-8k") ||
-            arg.equals("--start-8k") ||
-            arg.equals("-a") || arg.equals("--ascii") ||
+        if (arg.equals("-a") || arg.equals("--ascii") ||
             arg.equals("-b") || arg.equals("--binary") ||
-            arg.equals("-d") || arg.equals("--dot-to-slash") ||
-            arg.equals("-f") || arg.equals("--full-path") ||
+            arg.equals("-C") || arg.equals("--allow-remote-commands") ||
+            arg.equals("-D") || arg.equals("--null") ||
+            arg.equals("--errors") ||
+            arg.equals("--o-sync") ||
             arg.equals("-O") || arg.equals("--disable-timeouts") ||
             arg.equals("-R") || arg.equals("--restricted") ||
             arg.equals("-S") || arg.equals("--timesync") ||
             arg.equals("--syslog") || arg.equals("--syslog=off") ||
-            arg.equals("-T") || arg.equals("--turbo") ||
+            arg.equals("-u") || arg.equals("--keep-uppercase") ||
             arg.equals("-U") || arg.equals("--unrestrict") ||
             arg.equals("-tcp") ||
-            arg.equals("-tcp-server") ||
-            arg.equals("-TT")
+            arg.equals("-tcp-server")
         ) {
             return true;
         }
 
         // Two-argument parameters ignored.
         if (arg.equals("-B") || arg.equals("--bufsize") ||
-            arg.equals("-c") || arg.equals("--command") ||
-            arg.equals("-C") || arg.equals("--command-retries") ||
-            arg.equals("-i") || arg.equals("--immediate-command") ||
             arg.equals("-m") || arg.equals("--min-bps") ||
             arg.equals("-M") || arg.equals("--min-bps-time") ||
             arg.equals("--tcp-client")
@@ -341,51 +325,32 @@ public class Send {
             System.out.println("jermit " + jermit.Version.VERSION);
             System.exit(0);
         } else if (arg.equals("-+") || arg.equals("--append")) {
-            // Instruct the receiver to append transmitted data to an
-            // existing file (ZMODEM only).
+            // Append transmitted data to an existing file.
 
             // TODO
+        } else if (arg.equals("-c") || arg.equals("--with-crc")) {
+            // Use 16-bit CRC for Xmodem.
+            crc = true;
         } else if (arg.equals("-e") || arg.equals("--escape")) {
             // Escape all control characters; normally XON, XOFF, DLE,
             // CR-@-CR, and Ctrl-X are escaped.
 
             // TODO
         } else if (arg.equals("-E") || arg.equals("--rename")) {
-            // Force the sender to rename the new file if a file with the
-            // same name already exists.
+            // Rename the new file if a file with the same name already
+            // exists.
 
             // TODO
         } else if (arg.equals("-h") || arg.equals("--help")) {
             // Display help and exit.
             showUsage();
             System.exit(0);
-        } else if (arg.equals("-k") || arg.equals("--1k")) {
-            // (XMODEM/YMODEM) Send files using 1024 byte blocks rather than
-            // the default 128 byte blocks.  1024 byte packets speed file
-            // transfers at high bit rates.
-            blockSize = 1024;
         } else if (arg.equals("--kermit")) {
             // use KERMIT protocol.
             protocol = Protocol.KERMIT;
-        } else if (arg.equals("-n") || arg.equals("--newer")) {
-            // (ZMODEM) Send each file if destination file does not exist.
-            // Overwrite destination file if source file is newer than the
-            // destination file.
-
-            // TODO
-        } else if (arg.equals("-N") || arg.equals("--newer-or-longer")) {
-            // (ZMODEM) Send each file if destination file does not exist.
-            // Overwrite destination file if source file is newer or longer
-            // than the destination file.
-
-            // TODO
-        } else if (arg.equals("-o") || arg.equals("--16-bit-crc")) {
-            //  (ZMODEM) Disable automatic selection of 32 bit CRC.
-
-            // TODO
         } else if (arg.equals("-p") || arg.equals("--protect")) {
-            // (ZMODEM) Protect existing destination files by skipping
-            // transfer if the destination file exists.
+            // Protect existing destination files by skipping transfer if the
+            // destination file exists.
 
             // TODO
         } else if (arg.equals("-q") || arg.equals("--quiet")) {
@@ -399,10 +364,6 @@ public class Send {
             // destination file.
 
             // TODO
-        } else if (arg.equals("-u")) {
-            // Unlink the file after successful transmission.
-
-            // TODO
         } else if (arg.equals("-v") || arg.equals("--verbose")) {
             // Verbose output to stderr.  More v's generate more output.
 
@@ -411,17 +372,8 @@ public class Send {
             // use XMODEM protocol.
             protocol = Protocol.XMODEM;
         } else if (arg.equals("-y") || arg.equals("--overwrite")) {
-            // Instruct a ZMODEM receiving program to overwrite any existing
-            // file with the same name.
-
-            // TODO
-        } else if (arg.equals("-Y") || arg.equals("--overwrite-or-skip")) {
-            // Instruct a ZMODEM receiving program to overwrite any existing
-            // file with the same name, and to skip any source files that do
-            // not have a file with the same pathname on the destination
-            // system.
-
-            // TODO
+            // Overwrite any existing file with the same name.
+            overwrite = true;
         } else if (arg.equals("--ymodem")) {
             // use YMODEM protocol.
             protocol = Protocol.YMODEM;
@@ -450,19 +402,6 @@ public class Send {
         if (arg.equals("--delay-startup")) {
             // Wait N seconds before doing anything.
             sleepTime = 1000 * Integer.parseInt(value);
-        } else if (arg.equals("-l") || arg.equals("--framelen")) {
-            // Wait for the receiver to acknowledge correct data every N (32
-            // <= N <= 1024) characters.  This may be used to avoid network
-            // overrun when XOFF flow control is lacking.
-
-            // TODO
-        } else if (arg.equals("-L") || arg.equals("--packetlen")) {
-            // Use ZMODEM sub-packets of length N.  A larger N (32 <= N <=
-            // 1024) gives slightly higher throughput, a smaller N speeds
-            // error recovery.  The default is 128 below 300 baud, 256 above
-            // 300 baud, or 1024 above 2400 baud.
-
-            // TODO
         } else if (arg.equals("-s") || arg.equals("--stop-at")) {
             // Stop transmission at HH hours, MM minutes. Another variant,
             // using +N instead of HH:MM, stops transmission in N seconds.
@@ -486,11 +425,9 @@ public class Send {
      *
      * @param args the command line args.
      */
-    private Send(final String [] args) {
-        fileArgs = new LinkedList<String>();
-
-        // Iterate the list of command line arguments, extracting filenames
-        // and handling the options.
+    private Receive(final String [] args) {
+        // Iterate the list of command line arguments, extracting options and
+        // saving the last as a filename.
         boolean noMoreArgs = false;
         for (int i = 0; i < args.length; i++) {
             if (noMoreArgs == false) {
@@ -513,16 +450,16 @@ public class Send {
                     }
                 } else {
                     // This is a filename, it does not start with "-".
-                    fileArgs.add(args[i]);
+                    xmodemFile = args[i];
                 }
             } else {
                 // "--" was seen, so this is a filename.
-                fileArgs.add(args[i]);
+                xmodemFile = args[i];
             }
         } // for (int i = 0; i < args.length; i++)
 
-        if (fileArgs.size() == 0) {
-            System.err.println("jermit: need at least one file to send");
+        if ((xmodemFile == null) && (protocol == Protocol.XMODEM)) {
+            System.err.println("jermit: xmodem needs filename to receive to");
             System.err.println("Try jermit --help for more information.");
             System.exit(2);
         }
@@ -535,7 +472,7 @@ public class Send {
      */
     public static void main(final String [] args) {
         try {
-            Send program = new Send(args);
+            Receive program = new Receive(args);
             // Arguments are all handled, now start the program.
             program.run();
         } catch (Throwable t) {
