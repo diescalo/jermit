@@ -396,7 +396,14 @@ public class XmodemSession extends SerialFileTransferSession {
         if (DEBUG) {
             System.err.println("NAK " + bytesTransferred);
         }
-        output.write(NAK);
+
+        if (sequenceNumber == 1) {
+            // We are still trying to kick off the transfer, send NCGbyte
+            // rather than NAK.
+            sendNCG();
+        } else {
+            output.write(NAK);
+        }
         output.flush();
     }
 
@@ -927,6 +934,17 @@ public class XmodemSession extends SerialFileTransferSession {
                 output.write(data);
                 writeChecksum(data);
 
+                if ((flavor == Flavor.X_1K_G) &&
+                    (getState() == SerialFileTransferSession.State.TRANSFER)
+                ) {
+                    // Assume that all is good, increment sequence for the
+                    // next outgoing block.
+                    sequenceNumber++;
+                    consecutiveErrors = 0;
+                    return true;
+                }
+
+                // Wait for an ACK.
                 int ackByte = input.read();
                 if (ackByte == ACK) {
                     if (DEBUG) {
@@ -965,7 +983,6 @@ public class XmodemSession extends SerialFileTransferSession {
                     // Resend the block.
                     continue;
                 }
-
             } catch (ReadTimeoutException e) {
                 if (cancelFlag != 0) {
                     return false;
