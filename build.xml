@@ -31,6 +31,13 @@
 
 <project name="jermit" basedir="." default="jar">
 
+  <!--
+      We use java.nio.File, so cannot use the old 1.5 GCJ compiler
+      anymore.
+
+      <property name="build.compiler" value="gcj"/>
+  -->
+
   <property name="src.dir"       value="src"/>
   <property name="resources.dir" value="resources"/>
   <property name="build.dir"     value="build"/>
