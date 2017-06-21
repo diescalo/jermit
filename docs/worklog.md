@@ -1,3 +1,13 @@
+June 21, 2017
+
+With Qodem 1.0.0 released, I now have some time to put towards
+Jermit.  It would be nice to get this wrapped up in 2017, so I can
+then focus on Jexer for the next year or so.
+
+I've got the status line up now, and it requires two CANs to cancel.
+A couple of glitches fixed for the Qodem UI also.  Ready to tag 0.0.2
+and begin stubbing in Kermit.
+
 January 27, 2017
 
 Ymodem send/receive is working, though the Qodem UI screen is

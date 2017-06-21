@@ -3,7 +3,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (C) 2016 Kevin Lamonte
+ * Copyright (C) 2017 Kevin Lamonte
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -33,6 +33,7 @@ import java.awt.Cursor;
 import java.awt.Font;
 import java.awt.FontMetrics;
 import java.awt.Graphics;
+import java.awt.Graphics2D;
 import java.awt.Insets;
 import java.awt.Point;
 import java.awt.Rectangle;
@@ -42,6 +43,7 @@ import java.awt.image.BufferedImage;
 import java.awt.image.BufferStrategy;
 import java.io.InputStream;
 import java.util.Date;
+import java.util.HashMap;
 import javax.swing.JFrame;
 import javax.swing.SwingUtilities;
 
@@ -55,9 +57,9 @@ import jermit.ui.qodem.jexer.session.SwingSessionInfo;
 public final class SwingScreen extends Screen {
 
     /**
-     * If true, use double buffering thread.
+     * If true, use triple buffering thread.
      */
-    private static final boolean doubleBuffer = true;
+    private static boolean tripleBuffer = true;
 
     /**
      * Cursor style to draw.
@@ -142,14 +144,31 @@ public final class SwingScreen extends Screen {
         private static final String FONTFILE = "terminus-ttf-4.39/TerminusTTF-Bold-4.39.ttf";
 
         /**
-         * The BufferStrategy object needed for double-buffering.
+         * The BufferStrategy object needed for triple-buffering.
          */
         private BufferStrategy bufferStrategy;
+
+        /**
+         * A cache of previously-rendered glyphs for blinking text, when it
+         * is not visible.
+         */
+        private HashMap<Cell, BufferedImage> glyphCacheBlink;
+
+        /**
+         * A cache of previously-rendered glyphs for non-blinking, or
+         * blinking-and-visible, text.
+         */
+        private HashMap<Cell, BufferedImage> glyphCache;
 
         /**
          * The TUI Screen data.
          */
         SwingScreen screen;
+
+        /**
+         * If true, we were successful getting Terminus.
+         */
+        private boolean gotTerminus = false;
 
         /**
          * Width of a character cell.
@@ -253,7 +272,8 @@ public final class SwingScreen extends Screen {
                     return MYWHITE;
                 }
             }
-            throw new IllegalArgumentException("Invalid color: " + attr.getForeColor().getValue());
+            throw new IllegalArgumentException("Invalid color: " +
+                attr.getForeColor().getValue());
         }
 
         /**
@@ -280,7 +300,8 @@ public final class SwingScreen extends Screen {
             } else if (attr.getBackColor().equals(jermit.ui.qodem.jexer.bits.Color.WHITE)) {
                 return MYWHITE;
             }
-            throw new IllegalArgumentException("Invalid color: " + attr.getBackColor().getValue());
+            throw new IllegalArgumentException("Invalid color: " +
+                attr.getBackColor().getValue());
         }
 
         /**
@@ -293,8 +314,8 @@ public final class SwingScreen extends Screen {
             setDOSColors();
 
             // Figure out my cursor style
-            String cursorStyleString = System.getProperty("jexer.Swing.cursorStyle",
-                "underline").toLowerCase();
+            String cursorStyleString = System.getProperty(
+                "jexer.Swing.cursorStyle", "underline").toLowerCase();
 
             if (cursorStyleString.equals("underline")) {
                 cursorStyle = CursorStyle.UNDERLINE;
@@ -304,16 +325,26 @@ public final class SwingScreen extends Screen {
                 cursorStyle = CursorStyle.BLOCK;
             }
 
+            if (System.getProperty("jexer.Swing.tripleBuffer") != null) {
+                if (System.getProperty("jexer.Swing.tripleBuffer").
+                    equals("false")) {
+
+                    SwingScreen.tripleBuffer = false;
+                }
+            }
+
             setTitle("Jermit");
             setBackground(Color.black);
 
             try {
                 // Always try to use Terminus, the one decent font.
-                ClassLoader loader = Thread.currentThread().getContextClassLoader();
+                ClassLoader loader = Thread.currentThread().
+                        getContextClassLoader();
                 InputStream in = loader.getResourceAsStream(FONTFILE);
                 Font terminusRoot = Font.createFont(Font.TRUETYPE_FONT, in);
-                Font terminus = terminusRoot.deriveFont(Font.PLAIN, 22);
+                Font terminus = terminusRoot.deriveFont(Font.PLAIN, 20);
                 setFont(terminus);
+                gotTerminus = true;
             } catch (Exception e) {
                 e.printStackTrace();
                 // setFont(new Font("Liberation Mono", Font.PLAIN, 24));
@@ -336,16 +367,98 @@ public final class SwingScreen extends Screen {
             // Save the text cell width/height
             getFontDimensions();
 
-            // Setup double-buffering
-            if (SwingScreen.doubleBuffer) {
+            // Cache glyphs as they are rendered
+            glyphCacheBlink = new HashMap<Cell, BufferedImage>();
+            glyphCache = new HashMap<Cell, BufferedImage>();
+
+            // Setup triple-buffering
+            if (SwingScreen.tripleBuffer) {
                 setIgnoreRepaint(true);
-                createBufferStrategy(2);
+                createBufferStrategy(3);
                 bufferStrategy = getBufferStrategy();
             }
-
-            // Don't allow resizing for Jermit's Qodem UI.
-            setResizable(false);
         }
+
+        /**
+         * Figure out what textAdjustX and textAdjustY should be, based on
+         * the location of a vertical bar (to find textAdjustY) and a
+         * horizontal bar (to find textAdjustX).
+         *
+         * @return true if textAdjustX and textAdjustY were guessed at
+         * correctly
+         */
+        private boolean getFontAdjustments() {
+            BufferedImage image = null;
+
+            // What SHOULD happen is that the topmost/leftmost white pixel is
+            // at position (gr2x, gr2y).  But it might also be off by a pixel
+            // in either direction.
+
+            Graphics2D gr2 = null;
+            int gr2x = 3;
+            int gr2y = 3;
+            image = new BufferedImage(textWidth * 2, textHeight * 2,
+                BufferedImage.TYPE_INT_ARGB);
+
+            gr2 = image.createGraphics();
+            gr2.setFont(getFont());
+            gr2.setColor(java.awt.Color.BLACK);
+            gr2.fillRect(0, 0, textWidth * 2, textHeight * 2);
+            gr2.setColor(java.awt.Color.WHITE);
+            char [] chars = new char[1];
+            chars[0] = jermit.ui.qodem.jexer.bits.GraphicsChars.VERTICAL_BAR;
+            gr2.drawChars(chars, 0, 1, gr2x, gr2y + textHeight - maxDescent);
+            gr2.dispose();
+
+            for (int x = 0; x < textWidth; x++) {
+                for (int y = 0; y < textHeight; y++) {
+
+                    /*
+                    System.err.println("X: " + x + " Y: " + y + " " +
+                        image.getRGB(x, y));
+                     */
+
+                    if ((image.getRGB(x, y) & 0xFFFFFF) != 0) {
+                        textAdjustY = (gr2y - y);
+
+                        // System.err.println("textAdjustY: " + textAdjustY);
+                        x = textWidth;
+                        break;
+                    }
+                }
+            }
+
+            gr2 = image.createGraphics();
+            gr2.setFont(getFont());
+            gr2.setColor(java.awt.Color.BLACK);
+            gr2.fillRect(0, 0, textWidth * 2, textHeight * 2);
+            gr2.setColor(java.awt.Color.WHITE);
+            chars[0] = jermit.ui.qodem.jexer.bits.GraphicsChars.SINGLE_BAR;
+            gr2.drawChars(chars, 0, 1, gr2x, gr2y + textHeight - maxDescent);
+            gr2.dispose();
+
+            for (int x = 0; x < textWidth; x++) {
+                for (int y = 0; y < textHeight; y++) {
+
+                    /*
+                    System.err.println("X: " + x + " Y: " + y + " " +
+                        image.getRGB(x, y));
+                     */
+
+                    if ((image.getRGB(x, y) & 0xFFFFFF) != 0) {
+                        textAdjustX = (gr2x - x);
+
+                        // System.err.println("textAdjustX: " + textAdjustX);
+                        return true;
+                    }
+                }
+            }
+
+            // Something weird happened, don't rely on this function.
+            // System.err.println("getFontAdjustments: false");
+            return false;
+        }
+
 
         /**
          * Figure out my font dimensions.
@@ -357,14 +470,24 @@ public final class SwingScreen extends Screen {
             Rectangle2D bounds = fm.getMaxCharBounds(gr);
             int leading = fm.getLeading();
             textWidth = (int)Math.round(bounds.getWidth());
-            textHeight = (int)Math.round(bounds.getHeight()) - maxDescent;
-            // This also produces the same number, but works better for ugly
+            // textHeight = (int)Math.round(bounds.getHeight()) - maxDescent;
+
+            // This produces the same number, but works better for ugly
             // monospace.
             textHeight = fm.getMaxAscent() + maxDescent - leading;
 
-            if (System.getProperty("os.name").startsWith("Windows")) {
-                textAdjustY = -1;
-                textAdjustX = 0;
+            if (gotTerminus == true) {
+                textHeight++;
+            }
+
+            if (getFontAdjustments() == false) {
+                // We were unable to programmatically determine textAdjustX
+                // and textAdjustY, so try some guesses based on VM vendor.
+                String runtime = System.getProperty("java.runtime.name");
+                if ((runtime != null) && (runtime.contains("Java(TM)"))) {
+                    textAdjustY = -1;
+                    textAdjustX = 0;
+                }
             }
         }
 
@@ -392,6 +515,123 @@ public final class SwingScreen extends Screen {
             // The default update clears the area.  Don't do that, instead
             // just paint it directly.
             paint(gr);
+        }
+
+        /**
+         * Draw one glyph to the screen.
+         *
+         * @param gr the Swing Graphics context
+         * @param cell the Cell to draw
+         * @param xPixel the x-coordinate to render to.  0 means the
+         * left-most pixel column.
+         * @param yPixel the y-coordinate to render to.  0 means the top-most
+         * pixel row.
+         */
+        private void drawGlyph(final Graphics gr, final Cell cell,
+            final int xPixel, final int yPixel) {
+
+            BufferedImage image = null;
+            if (cell.isBlink() && !cursorBlinkVisible) {
+                image = glyphCacheBlink.get(cell);
+            } else {
+                image = glyphCache.get(cell);
+            }
+            if (image != null) {
+                gr.drawImage(image, xPixel, yPixel, this);
+                return;
+            }
+
+            // Generate glyph and draw it.
+            Graphics2D gr2 = null;
+            int gr2x = xPixel;
+            int gr2y = yPixel;
+            if (tripleBuffer) {
+                image = new BufferedImage(textWidth, textHeight,
+                    BufferedImage.TYPE_INT_ARGB);
+                gr2 = image.createGraphics();
+                gr2.setFont(getFont());
+                gr2x = 0;
+                gr2y = 0;
+            } else {
+                gr2 = (Graphics2D) gr;
+            }
+
+            Cell cellColor = new Cell();
+            cellColor.setTo(cell);
+
+            // Check for reverse
+            if (cell.isReverse()) {
+                cellColor.setForeColor(cell.getBackColor());
+                cellColor.setBackColor(cell.getForeColor());
+            }
+
+            // Draw the background rectangle, then the foreground character.
+            gr2.setColor(attrToBackgroundColor(cellColor));
+            gr2.fillRect(gr2x, gr2y, textWidth, textHeight);
+
+            // Handle blink and underline
+            if (!cell.isBlink()
+                || (cell.isBlink() && cursorBlinkVisible)
+            ) {
+                gr2.setColor(attrToForegroundColor(cellColor));
+                char [] chars = new char[1];
+                chars[0] = cell.getChar();
+                gr2.drawChars(chars, 0, 1, gr2x + textAdjustX,
+                    gr2y + textHeight - maxDescent + textAdjustY);
+
+                if (cell.isUnderline()) {
+                    gr2.fillRect(gr2x, gr2y + textHeight - 2, textWidth, 2);
+                }
+            }
+
+            if (tripleBuffer) {
+                gr2.dispose();
+
+                // We need a new key that will not be mutated by
+                // invertCell().
+                Cell key = new Cell();
+                key.setTo(cell);
+                if (cell.isBlink() && !cursorBlinkVisible) {
+                    glyphCacheBlink.put(key, image);
+                } else {
+                    glyphCache.put(key, image);
+                }
+
+                gr.drawImage(image, xPixel, yPixel, this);
+            }
+
+        }
+
+        /**
+         * Check if the cursor is visible, and if so draw it.
+         *
+         * @param gr the Swing Graphics context
+         */
+        private void drawCursor(final Graphics gr) {
+
+            if (cursorVisible
+                && (cursorY <= screen.height - 1)
+                && (cursorX <= screen.width - 1)
+                && cursorBlinkVisible
+            ) {
+                int xPixel = cursorX * textWidth + left;
+                int yPixel = cursorY * textHeight + top;
+                Cell lCell = screen.logical[cursorX][cursorY];
+                gr.setColor(attrToForegroundColor(lCell));
+                switch (cursorStyle) {
+                default:
+                    // Fall through...
+                case UNDERLINE:
+                    gr.fillRect(xPixel, yPixel + textHeight - 2, textWidth, 2);
+                    break;
+                case BLOCK:
+                    gr.fillRect(xPixel, yPixel, textWidth, textHeight);
+                    break;
+                case OUTLINE:
+                    gr.drawRect(xPixel, yPixel, textWidth - 1, textHeight - 1);
+                    break;
+                }
+            }
         }
 
         /**
@@ -472,69 +712,14 @@ public final class SwingScreen extends Screen {
                             || lCell.isBlink()
                             || reallyCleared) {
 
-                            Cell lCellColor = new Cell();
-                            lCellColor.setTo(lCell);
-
-                            // Check for reverse
-                            if (lCell.isReverse()) {
-                                lCellColor.setForeColor(lCell.getBackColor());
-                                lCellColor.setBackColor(lCell.getForeColor());
-                            }
-
-                            // Draw the background rectangle, then the
-                            // foreground character.
-                            gr.setColor(attrToBackgroundColor(lCellColor));
-                            gr.fillRect(xPixel, yPixel, textWidth, textHeight);
-
-                            // Handle blink and underline
-                            if (!lCell.isBlink()
-                                || (lCell.isBlink() && cursorBlinkVisible)
-                            ) {
-                                gr.setColor(attrToForegroundColor(lCellColor));
-                                char [] chars = new char[1];
-                                chars[0] = lCell.getChar();
-                                gr.drawChars(chars, 0, 1, xPixel + textAdjustX,
-                                    yPixel + textHeight - maxDescent
-                                    + textAdjustY);
-
-                                if (lCell.isUnderline()) {
-                                    gr.fillRect(xPixel, yPixel + textHeight - 2,
-                                        textWidth, 2);
-                                }
-                            }
+                            drawGlyph(gr, lCell, xPixel, yPixel);
 
                             // Physical is always updated
                             physical[x][y].setTo(lCell);
                         }
                     }
                 }
-
-                // Draw the cursor if it is visible
-                if (cursorVisible
-                    && (cursorY <= screen.height - 1)
-                    && (cursorX <= screen.width - 1)
-                    && cursorBlinkVisible
-                ) {
-                    int xPixel = cursorX * textWidth + left;
-                    int yPixel = cursorY * textHeight + top;
-                    Cell lCell = screen.logical[cursorX][cursorY];
-                    gr.setColor(attrToForegroundColor(lCell));
-                    switch (cursorStyle) {
-                    default:
-                        // Fall through...
-                    case UNDERLINE:
-                        gr.fillRect(xPixel, yPixel + textHeight - 2,
-                            textWidth, 2);
-                        break;
-                    case BLOCK:
-                        gr.fillRect(xPixel, yPixel, textWidth, textHeight);
-                        break;
-                    case OUTLINE:
-                        gr.drawRect(xPixel, yPixel, textWidth - 1,
-                            textHeight - 1);
-                        break;
-                    }
-                }
+                drawCursor(gr);
 
                 dirty = false;
                 reallyCleared = false;
@@ -572,10 +757,6 @@ public final class SwingScreen extends Screen {
                         sessionInfo.getWindowHeight());
 
                     SwingScreen.this.frame.resizeToScreen();
-
-                    // Try to center on screen
-                    SwingScreen.this.frame.setLocationRelativeTo(null);
-
                     SwingScreen.this.frame.setVisible(true);
                 }
             });
@@ -604,17 +785,24 @@ public final class SwingScreen extends Screen {
     @Override
     public void flushPhysical() {
 
-        if (reallyCleared) {
-            // Really refreshed, do it all
-            if (SwingScreen.doubleBuffer) {
-                Graphics gr = frame.bufferStrategy.getDrawGraphics();
-                frame.paint(gr);
-                gr.dispose();
-                frame.bufferStrategy.show();
-                Toolkit.getDefaultToolkit().sync();
-            } else {
-                frame.repaint();
-            }
+        /*
+        System.err.printf("flushPhysical(): reallyCleared %s dirty %s\n",
+            reallyCleared, dirty);
+         */
+
+        // If reallyCleared is set, we have to draw everything.
+        if ((frame.bufferStrategy != null) && (reallyCleared == true)) {
+            // Triple-buffering: we have to redraw everything on this thread.
+            Graphics gr = frame.bufferStrategy.getDrawGraphics();
+            frame.paint(gr);
+            gr.dispose();
+            frame.bufferStrategy.show();
+            // sync() doesn't seem to help the tearing for me.
+            // Toolkit.getDefaultToolkit().sync();
+            return;
+        } else if ((frame.bufferStrategy == null) && (reallyCleared == true)) {
+            // Repaint everything on the Swing thread.
+            frame.repaint();
             return;
         }
 
@@ -623,8 +811,48 @@ public final class SwingScreen extends Screen {
             return;
         }
 
-        // Request a repaint, let the frame's repaint/update methods do the
-        // right thing.
+        if (frame.bufferStrategy != null) {
+            // See if it is time to flip the blink time.
+            long nowTime = (new Date()).getTime();
+            if (nowTime > frame.blinkMillis + frame.lastBlinkTime) {
+                frame.lastBlinkTime = nowTime;
+                frame.cursorBlinkVisible = !frame.cursorBlinkVisible;
+            }
+
+            Graphics gr = frame.bufferStrategy.getDrawGraphics();
+
+            synchronized (this) {
+                for (int y = 0; y < height; y++) {
+                    for (int x = 0; x < width; x++) {
+                        Cell lCell = logical[x][y];
+                        Cell pCell = physical[x][y];
+
+                        int xPixel = x * frame.textWidth + frame.left;
+                        int yPixel = y * frame.textHeight + frame.top;
+
+                        if (!lCell.equals(pCell)
+                            || ((x == cursorX)
+                                && (y == cursorY)
+                                && cursorVisible)
+                            || (lCell.isBlink())
+                        ) {
+                            frame.drawGlyph(gr, lCell, xPixel, yPixel);
+                            physical[x][y].setTo(lCell);
+                        }
+                    }
+                }
+                frame.drawCursor(gr);
+            } // synchronized (this)
+
+            gr.dispose();
+            frame.bufferStrategy.show();
+            // sync() doesn't seem to help the tearing for me.
+            // Toolkit.getDefaultToolkit().sync();
+            return;
+        }
+
+        // Swing thread version: request a repaint, but limit it to the area
+        // that has changed.
 
         // Find the minimum-size damaged region.
         int xMin = frame.getWidth();
@@ -671,9 +899,13 @@ public final class SwingScreen extends Screen {
         }
 
         // Repaint the desired area
-        // System.err.printf("REPAINT X %d %d Y %d %d\n", xMin, xMax,
-        //     yMin, yMax);
-        if (SwingScreen.doubleBuffer) {
+        /*
+        System.err.printf("REPAINT X %d %d Y %d %d\n", xMin, xMax,
+            yMin, yMax);
+         */
+        if (frame.bufferStrategy != null) {
+            // This path should never be taken, but is left here for
+            // completeness.
             Graphics gr = frame.bufferStrategy.getDrawGraphics();
             Rectangle bounds = new Rectangle(xMin, yMin, xMax - xMin,
                 yMax - yMin);
@@ -681,8 +913,10 @@ public final class SwingScreen extends Screen {
             frame.paint(gr);
             gr.dispose();
             frame.bufferStrategy.show();
-            Toolkit.getDefaultToolkit().sync();
+            // sync() doesn't seem to help the tearing for me.
+            // Toolkit.getDefaultToolkit().sync();
         } else {
+            // Repaint on the Swing thread.
             frame.repaint(xMin, yMin, xMax - xMin, yMax - yMin);
         }
     }
@@ -739,6 +973,15 @@ public final class SwingScreen extends Screen {
      */
     public int textRow(final int y) {
         return ((y - frame.top) / frame.textHeight);
+    }
+
+    /**
+     * Set the window title.
+     *
+     * @param title the new title
+     */
+    public void setTitle(final String title) {
+        frame.setTitle(title);
     }
 
 }

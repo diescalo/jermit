@@ -94,6 +94,17 @@ public class YmodemSession extends XmodemSession {
     }
 
     /**
+     * Get the batchable flag.
+     *
+     * @return If true, this protocol can transfer multiple files.  If false,
+     * it can only transfer one file at a time.
+     */
+    @Override
+    public boolean isBatchable() {
+        return true;
+    }
+
+    /**
      * Set the current status message.  Overridden to provide ymodem package
      * access.
      *

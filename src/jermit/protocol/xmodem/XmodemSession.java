@@ -129,6 +129,12 @@ public class XmodemSession extends SerialFileTransferSession {
     protected int consecutiveErrors = 0;
 
     /**
+     * If true, a CAN was sent that might indicate the remote user wants to
+     * abort the transfer.
+     */
+    private boolean seenFirstCAN = false;
+
+    /**
      * If 0, nothing was cancelled.  If 1, cancel and keep partial (default
      * when receiver cancels).  If 2, cancel and do not keep partial.
      */
@@ -156,6 +162,17 @@ public class XmodemSession extends SerialFileTransferSession {
      */
     public Flavor getFlavor() {
         return flavor;
+    }
+
+    /**
+     * Get the batchable flag.
+     *
+     * @return If true, this protocol can transfer multiple files.  If false,
+     * it can only transfer one file at a time.
+     */
+    @Override
+    public boolean isBatchable() {
+        return false;
     }
 
     /**
@@ -440,6 +457,7 @@ public class XmodemSession extends SerialFileTransferSession {
         // Send CAN, squashing any errors
         try {
             output.write(CAN);
+            output.write(CAN);
             output.flush();
         } catch (IOException e) {
             // SQUASH
@@ -483,6 +501,10 @@ public class XmodemSession extends SerialFileTransferSession {
                     System.err.printf("blockType: 0x%02x\n", blockType);
                 }
 
+                if (blockType != CAN) {
+                    seenFirstCAN = false;
+                }
+
                 if (blockType == STX) {
                     blockSize = 1024;
                 } else if (blockType == SOH) {
@@ -491,9 +513,15 @@ public class XmodemSession extends SerialFileTransferSession {
                     // Normal end of transmission.  ACK the EOT.
                     ack();
                     return new byte[0];
-                } else if (blockType == CAN) {
+                } else if ((blockType == CAN) && (seenFirstCAN == false)) {
+                    // The remote side might be cancelling, or this might be
+                    // line noise.
+                    seenFirstCAN = true;
+                    continue;
+                } else if ((blockType == CAN) && (seenFirstCAN == true)) {
                     // The remote side has cancelled the transfer.
                     abort("TRANSFER CANCELLED BY SENDER");
+                    cancelFlag = 1;
                     return new byte[0];
                 } else {
                     purge("HEADER ERROR IN BLOCK #" + sequenceNumber);
@@ -821,6 +849,10 @@ public class XmodemSession extends SerialFileTransferSession {
                         flavorType);
                 }
 
+                if (flavorType != CAN) {
+                    seenFirstCAN = false;
+                }
+
                 if (flavorType == NAK) {
                     // Vanilla Xmodem - doesn't matter what we think it is.
                     // Downgrade if needed, but send the first packet.
@@ -855,7 +887,12 @@ public class XmodemSession extends SerialFileTransferSession {
                         // fallback to something else.
                         continue;
                     }
-                } else if (flavorType == CAN) {
+                } else if ((flavorType == CAN) && (seenFirstCAN == false)) {
+                    // The remote side might be cancelling, or this might be
+                    // line noise.
+                    seenFirstCAN = true;
+                    continue;
+                } else if ((flavorType == CAN) && (seenFirstCAN == true)) {
                     // The receiver is trying to cancel.  Bail out here.
                     if (DEBUG) {
                         System.err.println("*** CAN ***");
@@ -1135,10 +1172,11 @@ public class XmodemSession extends SerialFileTransferSession {
             throw new IllegalArgumentException("Xmodem can only upload one " +
                 "file at a time");
         }
-        this.flavor      = flavor;
-        this.protocol    = Protocol.XMODEM;
-        this.output      = output;
-        this.currentFile = -1;
+        this.flavor             = flavor;
+        this.protocol           = Protocol.XMODEM;
+        this.output             = output;
+        this.currentFile        = -1;
+        this.seenFirstCAN       = false;
 
         if (input instanceof TimeoutInputStream) {
             // Someone has already set the timeout.  Keep their value.
@@ -1166,10 +1204,11 @@ public class XmodemSession extends SerialFileTransferSession {
         final boolean download) {
 
         super(file, download);
-        this.flavor      = flavor;
-        this.protocol    = Protocol.XMODEM;
-        this.output      = output;
-        this.currentFile = 0;
+        this.flavor             = flavor;
+        this.protocol           = Protocol.XMODEM;
+        this.output             = output;
+        this.currentFile        = 0;
+        this.seenFirstCAN       = false;
 
         if (input instanceof TimeoutInputStream) {
             // Someone has already set the timeout.  Keep their value.
@@ -1195,10 +1234,11 @@ public class XmodemSession extends SerialFileTransferSession {
         final OutputStream output, final boolean download) {
 
         super(download);
-        this.flavor      = flavor;
-        this.protocol    = Protocol.XMODEM;
-        this.output      = output;
-        this.currentFile = -1;
+        this.flavor             = flavor;
+        this.protocol           = Protocol.XMODEM;
+        this.output             = output;
+        this.currentFile        = -1;
+        this.seenFirstCAN       = false;
 
         if (input instanceof TimeoutInputStream) {
             // Someone has already set the timeout.  Keep their value.

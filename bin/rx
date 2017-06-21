@@ -29,9 +29,16 @@
 # SOFTWARE.
 # -----------------------------------------------------------------------------
 
-# TODO: perform a search for java and the jar
-
-JERMIT_JAR=build/jar/jermit.jar
+JAR_PATHS="build/jar /usr/share/java"
+for i in $JAR_PATHS ; do
+    if [ -f $i/jermit.jar ]; then
+        JERMIT_JAR=$i/jermit.jar
+    fi
+done
+if [ -z $JERMIT_JAR ]; then
+    echo "Error: jermit.jar not found.  Looked in: $JAR_PATHS"
+    return -1
+fi
 JAVA=java
 UI=jermit.ui.rzsz.Receive
 

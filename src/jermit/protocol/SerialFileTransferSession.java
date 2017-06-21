@@ -250,6 +250,14 @@ public abstract class SerialFileTransferSession {
     }
 
     /**
+     * Get the batchable flag.
+     *
+     * @return If true, this protocol can transfer multiple files.  If false,
+     * it can only transfer one file at a time.
+     */
+    public abstract boolean isBatchable();
+
+    /**
      * Construct an instance to represent a batch upload.
      *
      * @param uploadFiles list of files to upload
@@ -472,6 +480,10 @@ public abstract class SerialFileTransferSession {
         }
         if ((state == State.FILE_INFO) && (download == true)) {
             // We do not yet have a file to download.
+            return null;
+        }
+        if ((state == State.ABORT) && (currentFile < 0)) {
+            // The user aborted before the first file was added to the list.
             return null;
         }
         if (currentFile == files.size()) {

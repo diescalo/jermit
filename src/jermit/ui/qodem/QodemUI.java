@@ -84,6 +84,7 @@ public class QodemUI implements Runnable {
     CellAttributes window;
     CellAttributes label;
     CellAttributes text;
+    CellAttributes status;
 
     /**
      * Public constructor.
@@ -108,6 +109,9 @@ public class QodemUI implements Runnable {
         text.setForeColor(Color.YELLOW);
         text.setBackColor(Color.BLUE);
         text.setBold(true);
+        status = new CellAttributes();
+        status.setForeColor(Color.BLUE);
+        status.setBackColor(Color.WHITE);
 
         // Create a screen
         screen = new SwingScreen();
@@ -223,7 +227,7 @@ public class QodemUI implements Runnable {
      */
     private void drawScreen() {
 
-        screen.drawBox(0, 0, screen.getWidth(), screen.getHeight(),
+        screen.drawBox(0, 0, screen.getWidth(), screen.getHeight() - 1,
             border, window, 3, false);
 
         String title = "Upload Status";
@@ -249,6 +253,32 @@ public class QodemUI implements Runnable {
         int seconds = 0;
         String timeElapsedString = "00:00:00";
         String remainingTimeString = "00:00:00";
+
+        String statusLine = "";
+        if (session.isDownload() && session.isBatchable()) {
+            statusLine = " Download in Progress   S-Skip File   ESC/`-Cancel Transfer ";
+        } else if (session.isDownload() && !session.isBatchable()) {
+            statusLine = " Download in Progress   ESC/`-Cancel Transfer ";
+        } else if (!session.isDownload() && session.isBatchable()) {
+            statusLine = " Batch Upload in Progress   S-Skip File   ESC/`-Cancel Transfer ";
+        } else {
+            statusLine = " Upload in Progress   ESC/`-Cancel Transfer ";
+        }
+
+        /*
+         * Put up the status line
+         */
+        screen.hLineXY(0, screen.getHeight() - 1, screen.getWidth(),
+            GraphicsChars.HATCH, status);
+
+        int statusLeftStop = screen.getWidth() - statusLine.length();
+        if (statusLeftStop <= 0) {
+            statusLeftStop = 0;
+        } else {
+            statusLeftStop /= 2;
+        }
+        screen.putStringXY(statusLeftStop, screen.getHeight() - 1,
+            statusLine, status);
 
         /*
          * Protocol name, filename, pathname

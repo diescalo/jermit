@@ -1,17 +1,6 @@
 Jermit TODO List
 ================
 
-0.0.2:
-
-  Status line
-
-  Xmodem:
-    - 2 CANs cancels, not 1
-
-  bin/jermit
-    - Find jar
-
-
 0.0.3:
 
   Kermit:

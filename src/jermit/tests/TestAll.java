@@ -45,7 +45,9 @@ public class TestAll {
         try {
             System.out.println("--- Executing all Jermit tests... ---");
 
-            if (false) {
+            /*
+             * XMODEM ---------------------------------------------------------
+             */
 
             /*
              * Downloads - clean line
@@ -53,26 +55,16 @@ public class TestAll {
             (new Xmodem1()).doTest();
             (new Xmodem2()).doTest();
             (new Xmodem3()).doTest();
-
-            if (false) {
-
             (new Xmodem4()).doTest();
             (new Xmodem5()).doTest();
             (new Xmodem6()).doTest();
 
-            }
-
-            // }
             /*
              * Uploads - clean line
              */
             (new Xmodem7()).doTest();
             (new Xmodem9()).doTest();
             (new Xmodem10()).doTest();
-            // if (false) {
-
-            if (false) {
-
             /*
             // This one uses throttled input streams, don't run it normally.
             (new Xmodem8()).doTest();
@@ -84,10 +76,9 @@ public class TestAll {
             (new Xmodem11()).doTest();
             (new Xmodem12()).doTest();
 
-            }
-
-            }
-
+            /*
+             * YMODEM ---------------------------------------------------------
+             */
             (new Ymodem1()).doTest();
             (new Ymodem2()).doTest();
             (new Ymodem3()).doTest();

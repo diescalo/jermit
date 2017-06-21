@@ -71,7 +71,7 @@ public final class SwingSessionInfo implements SessionInfo {
     /**
      * Text window height.
      */
-    private int windowHeight = 13;
+    private int windowHeight = 14;
 
     /**
      * Username getter.
