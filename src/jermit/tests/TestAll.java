@@ -30,6 +30,7 @@ package jermit.tests;
 
 import jermit.tests.xmodem.*;
 import jermit.tests.ymodem.*;
+import jermit.tests.kermit.*;
 
 /**
  * Execute all of the transfer tests.
@@ -44,6 +45,8 @@ public class TestAll {
     public static void main(final String [] args) {
         try {
             System.out.println("--- Executing all Jermit tests... ---");
+
+            if (false) {
 
             /*
              * XMODEM ---------------------------------------------------------
@@ -84,6 +87,17 @@ public class TestAll {
             (new Ymodem3()).doTest();
             (new Ymodem4()).doTest();
             (new Ymodem5()).doTest();
+
+            }
+
+            /*
+             * KERMIT ---------------------------------------------------------
+             */
+
+            /*
+             * Downloads - clean line
+             */
+            (new Kermit1()).doTest();
 
         } catch (Throwable t) {
             t.printStackTrace();
