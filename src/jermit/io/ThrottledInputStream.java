@@ -38,6 +38,10 @@ import java.util.Calendar;
  */
 public class ThrottledInputStream extends InputStream {
 
+    // ------------------------------------------------------------------------
+    // Variables --------------------------------------------------------------
+    // ------------------------------------------------------------------------
+
     /**
      * The wrapped stream.
      */
@@ -75,6 +79,10 @@ public class ThrottledInputStream extends InputStream {
      */
     private int bitsPerByte = 10;
 
+    // ------------------------------------------------------------------------
+    // Constructors -----------------------------------------------------------
+    // ------------------------------------------------------------------------
+
     /**
      * Public constructor, at the default rate of 2400 bps and 10 bits per
      * byte.
@@ -104,6 +112,7 @@ public class ThrottledInputStream extends InputStream {
      *
      * @param stream the wrapped InputStream
      * @param bps the bits per second to transfer
+     * @param bitsPerByte the number of bits to assume per byte transferred
      */
     public ThrottledInputStream(final InputStream stream, final int bps,
         final int bitsPerByte) {
@@ -112,40 +121,9 @@ public class ThrottledInputStream extends InputStream {
         this.bitsPerByte        = bitsPerByte;
     }
 
-    /**
-     * Return general use of this stream as a reportable string.
-     *
-     * @return duration, bytes, and bytes/sec values
-     */
-    public String getStats() {
-        StringBuilder stats = new StringBuilder();
-        Calendar cal = Calendar.getInstance();
-        cal.setTimeInMillis(startTime);
-        long now = System.currentTimeMillis();
-        long duration = now - startTime;
-        long transferDuration = lastByteTime - startTime;
-        long days = (duration / 1000) / 86400;
-        long rem = duration - (days * 1000 * 86400);
-        long hours = (rem / 1000) / 3600;
-        rem = rem - (hours * 1000 * 3600);
-        long minutes = (rem / 1000) / 60;
-        rem = rem - (minutes * 1000 * 60);
-        long seconds = rem / 1000;
-        long millis = rem % 1000;
-        stats.append(String.format("Connect time:   %1$tF %1$tT.%1$tL\n", cal));
-        if (days > 0) {
-            stats.append(String.format("Duration:  %d d %02d:%02d:%02d.%03d\n",
-                    days, hours, minutes, seconds, millis));
-        } else {
-            stats.append(String.format("Duration:       %02d:%02d:%02d.%03d\n",
-                    hours, minutes, seconds, millis));
-        }
-        stats.append(String.format("Bytes:          %d\n", totalBytes));
-        stats.append(String.format("Bytes/sec:      %.3f",
-                (1000.0 * totalBytes) / (double)transferDuration));
-
-        return stats.toString();
-    }
+    // ------------------------------------------------------------------------
+    // InputStream ------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
     /**
      * Reads the next byte of data from the input stream.
@@ -328,6 +306,45 @@ public class ThrottledInputStream extends InputStream {
     @Override
     public long skip(final long n) throws IOException {
         return stream.skip(n);
+    }
+
+    // ------------------------------------------------------------------------
+    // ThrottledInputStream ---------------------------------------------------
+    // ------------------------------------------------------------------------
+
+    /**
+     * Return general use of this stream as a reportable string.
+     *
+     * @return duration, bytes, and bytes/sec values
+     */
+    public String getStats() {
+        StringBuilder stats = new StringBuilder();
+        Calendar cal = Calendar.getInstance();
+        cal.setTimeInMillis(startTime);
+        long now = System.currentTimeMillis();
+        long duration = now - startTime;
+        long transferDuration = lastByteTime - startTime;
+        long days = (duration / 1000) / 86400;
+        long rem = duration - (days * 1000 * 86400);
+        long hours = (rem / 1000) / 3600;
+        rem = rem - (hours * 1000 * 3600);
+        long minutes = (rem / 1000) / 60;
+        rem = rem - (minutes * 1000 * 60);
+        long seconds = rem / 1000;
+        long millis = rem % 1000;
+        stats.append(String.format("Connect time:   %1$tF %1$tT.%1$tL\n", cal));
+        if (days > 0) {
+            stats.append(String.format("Duration:  %d d %02d:%02d:%02d.%03d\n",
+                    days, hours, minutes, seconds, millis));
+        } else {
+            stats.append(String.format("Duration:       %02d:%02d:%02d.%03d\n",
+                    hours, minutes, seconds, millis));
+        }
+        stats.append(String.format("Bytes:          %d\n", totalBytes));
+        stats.append(String.format("Bytes/sec:      %.3f",
+                (1000.0 * totalBytes) / (double)transferDuration));
+
+        return stats.toString();
     }
 
 }

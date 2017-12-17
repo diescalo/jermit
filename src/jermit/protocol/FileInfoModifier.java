@@ -36,10 +36,35 @@ import jermit.io.LocalFileInterface;
  */
 public class FileInfoModifier {
 
+    // ------------------------------------------------------------------------
+    // Variables --------------------------------------------------------------
+    // ------------------------------------------------------------------------
+
     /**
      * The FileInfo being modified.
      */
     private FileInfo fileInfo;
+
+    // ------------------------------------------------------------------------
+    // Constructors -----------------------------------------------------------
+    // ------------------------------------------------------------------------
+
+    /**
+     * Package private instance constructor.
+     *
+     * @param fileInfo the FileInfo that will be modified by one of the
+     * protocol implementations
+     */
+    FileInfoModifier(final FileInfo fileInfo) {
+        if (fileInfo == null) {
+            throw new IllegalArgumentException("fileInfo cannot be null");
+        }
+        this.fileInfo = fileInfo;
+    }
+
+    // ------------------------------------------------------------------------
+    // FileInfoModifier -------------------------------------------------------
+    // ------------------------------------------------------------------------
 
     /**
      * Set the name of the file on the remote system.
@@ -167,19 +192,6 @@ public class FileInfoModifier {
      */
     public void setRemoteName(final String remoteFilename) {
         fileInfo.remoteFilename = remoteFilename;
-    }
-
-    /**
-     * Package private instance constructor.
-     *
-     * @param fileInfo the FileInfo that will be modified by one of the
-     * protocol implementations
-     */
-    FileInfoModifier(final FileInfo fileInfo) {
-        if (fileInfo == null) {
-            throw new IllegalArgumentException("fileInfo cannot be null");
-        }
-        this.fileInfo = fileInfo;
     }
 
 }

@@ -1,3 +1,18 @@
+December 17, 2017
+
+I have some time before the end of the year to give this project a
+little bit of work.  I'm aiming to get a basic Kermit implementation
+going before the end of the year.  So let's see where we are at...
+
+Missing a lot of package-info's, that's fixed.
+
+Reformatting class structure to make PMD happier, as done for Jexer.
+
+Hmm, I'm seeing a lot of functions in Ymodem that are direct calls to
+super.  Do I need those?  Let's see what happens if I pull them out.
+Nope, that right I need them to provide ymodem package access to those
+xmodem package functions.  OK, so far so good.
+
 June 21, 2017
 
 With Qodem 1.0.0 released, I now have some time to put towards

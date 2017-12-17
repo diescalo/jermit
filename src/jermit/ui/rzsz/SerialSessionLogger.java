@@ -28,8 +28,6 @@
  */
 package jermit.ui.rzsz;
 
-import java.util.List;
-
 import jermit.protocol.SerialFileTransferMessage;
 import jermit.protocol.SerialFileTransferSession;
 
@@ -39,10 +37,18 @@ import jermit.protocol.SerialFileTransferSession;
  */
 public class SerialSessionLogger implements Runnable {
 
+    // ------------------------------------------------------------------------
+    // Variables --------------------------------------------------------------
+    // ------------------------------------------------------------------------
+
     /**
      * The file transfer session.
      */
     private SerialFileTransferSession session;
+
+    // ------------------------------------------------------------------------
+    // Constructors -----------------------------------------------------------
+    // ------------------------------------------------------------------------
 
     /**
      * Public constructor.
@@ -53,17 +59,10 @@ public class SerialSessionLogger implements Runnable {
         this.session = session;
     }
 
-    /**
-     * Emit a message to System.err.
-     *
-     * @param message the message to emit
-     */
-    private void emitMessage(final SerialFileTransferMessage message) {
-        // TODO: timestamp, info/error, etc.
-        // Make it match rzsz if possible.
-        System.err.println(message.getMessage());
-    }
-    
+    // ------------------------------------------------------------------------
+    // Runnable ---------------------------------------------------------------
+    // ------------------------------------------------------------------------
+
     /**
      * Monitor the file transfer and display messages as they are added to
      * the session.
@@ -107,6 +106,21 @@ public class SerialSessionLogger implements Runnable {
         } catch (Throwable t) {
             t.printStackTrace();
         }
+    }
+
+    // ------------------------------------------------------------------------
+    // SerialSessionLogger ----------------------------------------------------
+    // ------------------------------------------------------------------------
+
+    /**
+     * Emit a message to System.err.
+     *
+     * @param message the message to emit
+     */
+    private void emitMessage(final SerialFileTransferMessage message) {
+        // TODO: timestamp, info/error, etc.
+        // Make it match rzsz if possible.
+        System.err.println(message.getMessage());
     }
 
 }

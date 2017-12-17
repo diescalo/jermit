@@ -38,19 +38,18 @@ import java.io.InputStream;
  */
 public class EOFInputStream extends InputStream {
 
+    // ------------------------------------------------------------------------
+    // Variables --------------------------------------------------------------
+    // ------------------------------------------------------------------------
+
     /**
      * The wrapped stream.
      */
     private InputStream stream;
 
-    /**
-     * Get the wrapped stream.
-     *
-     * @return the wrapped stream
-     */
-    public InputStream getStream() {
-        return stream;
-    }
+    // ------------------------------------------------------------------------
+    // Constructors -----------------------------------------------------------
+    // ------------------------------------------------------------------------
 
     /**
      * Public constructor.
@@ -60,6 +59,10 @@ public class EOFInputStream extends InputStream {
     public EOFInputStream(final InputStream stream) {
         this.stream = stream;
     }
+    
+    // ------------------------------------------------------------------------
+    // InputStream ------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
     /**
      * Reads the next byte of data from the input stream.
@@ -189,6 +192,19 @@ public class EOFInputStream extends InputStream {
     @Override
     public long skip(final long n) throws IOException {
         return stream.skip(n);
+    }
+    
+    // ------------------------------------------------------------------------
+    // EOFInputStream ---------------------------------------------------------
+    // ------------------------------------------------------------------------
+
+    /**
+     * Get the wrapped stream.
+     *
+     * @return the wrapped stream
+     */
+    public InputStream getStream() {
+        return stream;
     }
 
 }

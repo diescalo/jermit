@@ -28,19 +28,12 @@
  */
 package jermit.protocol.ymodem;
 
-import java.io.File;
 import java.io.InputStream;
-import java.io.IOException;
 import java.io.OutputStream;
-import java.util.LinkedList;
+import java.util.ArrayList;
 import java.util.List;
 
-import jermit.io.EOFInputStream;
-import jermit.io.LocalFile;
-import jermit.io.LocalFileInterface;
-import jermit.io.ReadTimeoutException;
 import jermit.io.TimeoutInputStream;
-import jermit.protocol.FileInfo;
 import jermit.protocol.FileInfoModifier;
 import jermit.protocol.SerialFileTransferSession;
 import jermit.protocol.xmodem.XmodemSender;
@@ -51,17 +44,16 @@ import jermit.protocol.xmodem.XmodemSession;
  */
 public class YmodemSender extends XmodemSender implements Runnable {
 
+    // ------------------------------------------------------------------------
+    // Variables --------------------------------------------------------------
+    // ------------------------------------------------------------------------
+
     // If true, enable some debugging output.
     private static final boolean DEBUG = false;
 
-    /**
-     * Get the session.
-     *
-     * @return the session for this transfer
-     */
-    public YmodemSession getSession() {
-        return (YmodemSession) session;
-    }
+    // ------------------------------------------------------------------------
+    // Constructors -----------------------------------------------------------
+    // ------------------------------------------------------------------------
 
     /**
      * Construct an instance to upload multiple files using existing I/O
@@ -95,12 +87,16 @@ public class YmodemSender extends XmodemSender implements Runnable {
 
         super(XmodemSession.Flavor.X_1K, input, output);
 
-        List<String> uploadFiles = new LinkedList<String>();
+        List<String> uploadFiles = new ArrayList<String>();
         uploadFiles.add(uploadFile);
 
         session = new YmodemSession(YmodemSession.YFlavor.VANILLA, input,
             output, uploadFiles);
     }
+
+    // ------------------------------------------------------------------------
+    // Runnable ---------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
     /**
      * Perform a file download using the Ymodem protocol.  Any exceptions
@@ -149,6 +145,10 @@ public class YmodemSender extends XmodemSender implements Runnable {
 
     }
 
+    // ------------------------------------------------------------------------
+    // XmodemSender -----------------------------------------------------------
+    // ------------------------------------------------------------------------
+
     /**
      * Cancel this entire file transfer.  The session state will become
      * ABORT.
@@ -156,6 +156,7 @@ public class YmodemSender extends XmodemSender implements Runnable {
      * @param keepPartial If true, save whatever has been collected if this
      * was a download.  If false, delete the file.
      */
+    @Override
     public void cancelTransfer(boolean keepPartial) {
         // Cast the XmodemSession to YmodemSession to gain access to its
         // protected methods.
@@ -181,10 +182,24 @@ public class YmodemSender extends XmodemSender implements Runnable {
      * @param keepPartial If true, save whatever has been collected if this
      * was a download.  If false, delete the file.
      */
+    @Override
     public void skipFile(boolean keepPartial) {
         synchronized (session) {
             session.skipFile(keepPartial);
         }
+    }
+
+    // ------------------------------------------------------------------------
+    // YmodemSender -----------------------------------------------------------
+    // ------------------------------------------------------------------------
+
+    /**
+     * Get the session.
+     *
+     * @return the session for this transfer
+     */
+    public YmodemSession getSession() {
+        return (YmodemSession) session;
     }
 
 }

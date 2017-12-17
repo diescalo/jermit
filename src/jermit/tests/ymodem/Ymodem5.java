@@ -78,7 +78,7 @@ public class Ymodem5 extends SerialTransferTest implements Runnable {
         }
         pairs[0].name = "lady-of-shalott.jpg";
 
-        LinkedList<String> files = new LinkedList<String>();
+        List<String> files = new LinkedList<String>();
 
         for (int i = 0; i < pairs.length; i++) {
             File source = File.createTempFile("send-ymodem", "");

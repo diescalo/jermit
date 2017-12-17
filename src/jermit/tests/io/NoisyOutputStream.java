@@ -30,7 +30,6 @@ package jermit.tests.io;
 
 import java.io.IOException;
 import java.io.OutputStream;
-import java.util.Calendar;
 
 /**
  * This class randomly screws up write()s on an OutputStream.

@@ -52,6 +52,10 @@ import jermit.ui.posix.Stty;
  */
 public class Jermit {
 
+    // ------------------------------------------------------------------------
+    // Variables --------------------------------------------------------------
+    // ------------------------------------------------------------------------
+
     /**
      * The protocol to select.  Most people want Zmodem, so default to that.
      * Even though Kermit is a lot better.
@@ -94,6 +98,68 @@ public class Jermit {
      * For debugging purposes, permit a bandwidth limiter.
      */
     private int bps = -1;
+
+    // ------------------------------------------------------------------------
+    // Constructors -----------------------------------------------------------
+    // ------------------------------------------------------------------------
+
+    /**
+     * Construct a new instance.  Made private so that the only way to get
+     * here is via the static main() method.
+     *
+     * @param args the command line args.
+     */
+    private Jermit(final String [] args) {
+        fileArgs = new LinkedList<String>();
+
+        // Iterate the list of command line arguments, extracting filenames
+        // and handling the options.
+        boolean noMoreArgs = false;
+        for (int i = 0; i < args.length; i++) {
+            if (noMoreArgs == false) {
+                if (args[i].equals("--")) {
+                    // "--" means treat everything afterwards like a
+                    // filename.
+                    noMoreArgs = true;
+                    continue;
+                }
+                if (args[i].startsWith("-")) {
+                    // This is an argument, process it.
+                    if (processArg(args[i]) == false) {
+                        if (i < args.length - 1) {
+                            processTwoArgs(args[i], args[i + 1]);
+                            i++;
+                        } else {
+                            System.err.println("Warning: command line option " +
+                                args[i] + " expects an argument");
+                        }
+                    }
+                } else {
+                    // This is a filename, it does not start with "-".
+                    fileArgs.add(args[i]);
+                }
+            } else {
+                // "--" was seen, so this is a filename.
+                fileArgs.add(args[i]);
+            }
+        } // for (int i = 0; i < args.length; i++)
+
+        if ((fileArgs.size() == 0) && (protocol == Protocol.XMODEM)) {
+            System.err.println("jermit: xmodem needs filename to receive to");
+            System.err.println("Try jermit --help for more information.");
+            System.exit(2);
+        }
+
+        if ((fileArgs.size() == 0) && (download == false)) {
+            System.err.println("jermit: send needs at least one file to transfer");
+            System.err.println("Try jermit --help for more information.");
+            System.exit(2);
+        }
+    }
+
+    // ------------------------------------------------------------------------
+    // Jermit -----------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
     /**
      * Execute the file transfer, whatever that is.
@@ -321,60 +387,6 @@ public class Jermit {
 
         // This argument was consumed.
         return true;
-    }
-
-    /**
-     * Construct a new instance.  Made private so that the only way to get
-     * here is via the static main() method.
-     *
-     * @param args the command line args.
-     */
-    private Jermit(final String [] args) {
-        fileArgs = new LinkedList<String>();
-
-        // Iterate the list of command line arguments, extracting filenames
-        // and handling the options.
-        boolean noMoreArgs = false;
-        for (int i = 0; i < args.length; i++) {
-            if (noMoreArgs == false) {
-                if (args[i].equals("--")) {
-                    // "--" means treat everything afterwards like a
-                    // filename.
-                    noMoreArgs = true;
-                    continue;
-                }
-                if (args[i].startsWith("-")) {
-                    // This is an argument, process it.
-                    if (processArg(args[i]) == false) {
-                        if (i < args.length - 1) {
-                            processTwoArgs(args[i], args[i + 1]);
-                            i++;
-                        } else {
-                            System.err.println("Warning: command line option " +
-                                args[i] + " expects an argument");
-                        }
-                    }
-                } else {
-                    // This is a filename, it does not start with "-".
-                    fileArgs.add(args[i]);
-                }
-            } else {
-                // "--" was seen, so this is a filename.
-                fileArgs.add(args[i]);
-            }
-        } // for (int i = 0; i < args.length; i++)
-
-        if ((fileArgs.size() == 0) && (protocol == Protocol.XMODEM)) {
-            System.err.println("jermit: xmodem needs filename to receive to");
-            System.err.println("Try jermit --help for more information.");
-            System.exit(2);
-        }
-
-        if ((fileArgs.size() == 0) && (download == false)) {
-            System.err.println("jermit: send needs at least one file to transfer");
-            System.err.println("Try jermit --help for more information.");
-            System.exit(2);
-        }
     }
 
     /**

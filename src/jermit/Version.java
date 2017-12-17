@@ -37,7 +37,7 @@ public class Version {
     /**
      * This version of Jermit.
      */
-    public static final String VERSION = "0.0.1";
+    public static final String VERSION = "0.0.3";
 
     /**
      * The author name.
@@ -75,6 +75,5 @@ public class Version {
     "CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,\n" +
     "TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE\n" +
     "SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.";
-
 
 }

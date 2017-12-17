@@ -35,6 +35,10 @@ import jermit.io.LocalFileInterface;
  */
 public class FileInfo {
 
+    // ------------------------------------------------------------------------
+    // Variables --------------------------------------------------------------
+    // ------------------------------------------------------------------------
+
     /**
      * The path to the file if stored on the local filesystem.
      */
@@ -102,6 +106,26 @@ public class FileInfo {
      * If true, this file was transferred successfully.
      */
     protected boolean complete = false;
+
+    // ------------------------------------------------------------------------
+    // Constructors -----------------------------------------------------------
+    // ------------------------------------------------------------------------
+
+    /**
+     * Construct an instance based on a local file.
+     *
+     * @param file path to file on the local filesystem
+     */
+    public FileInfo(final LocalFileInterface file) {
+        localFile       = file;
+        size            = file.getLength();
+        modtime         = file.getTime();
+        remoteFilename  = file.getRemoteName();
+    }
+
+    // ------------------------------------------------------------------------
+    // FileInfo ---------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
     /**
      * Get the size of the file.
@@ -246,18 +270,6 @@ public class FileInfo {
             return 100.0;
         }
         return ((double) bytesTransferred / (double) bytesTotal) * 100.0;
-    }
-
-    /**
-     * Construct an instance based on a local file.
-     *
-     * @param file path to file on the local filesystem
-     */
-    public FileInfo(final LocalFileInterface file) {
-        localFile       = file;
-        size            = file.getLength();
-        modtime         = file.getTime();
-        remoteFilename  = file.getRemoteName();
     }
 
 }

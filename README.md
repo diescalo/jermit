@@ -33,13 +33,13 @@ applications have very few good choices that are Open Source or Free
 Software, especially if they are writing in languages other than C.
 For those that do write in C: the original public domain rzsz code is
 a complete mess; lrzsz is better but is licensed GPL and cannot be
-directly incorporated into proprietary application; the various kermit
-implementations from the official Kermit Project were under encumbered
-licenses for a long time (but now are BSD), and make liberal of use of
-transport-level operating system calls and legacy C language features
-(needed to support as many systems as it does); and most other
-codebases are designed to run as standalone programs speaking to
-stdin/stdout.
+directly incorporated into a proprietary application; the various
+kermit implementations from the official Kermit Project were under
+encumbered licenses for a long time (but now are BSD), and make
+liberal of use of transport-level operating system calls and legacy C
+language features (needed to support as many systems as it does); and
+most other codebases are designed to run as standalone programs
+speaking to stdin/stdout.
 
 Jermit is intended to provided a good baseline implementation of these
 protocols, in a modern environment with easy-to-read source, and
@@ -62,8 +62,9 @@ VT100/xterm-like Java terminal in the Jexer jexer.tterminal.ECMA48
 class: combining Jermit and Jexer one could rather quickly put
 together a terminal emulator that could both pass vttest and transfer
 files.  Jexer (licensed MIT) is available at
-https://github.com/klamonte/jexer .  The Jexer Swing backend code is
-reproduced here for use Jermit's "Qodem" UI (jermit.ui.qodem.Jermit).
+https://github.com/klamonte/jexer .  A minimal working subset of the
+Jexer Swing backend code is reproduced here for use Jermit's "Qodem"
+UI (jermit.ui.qodem.Jermit).
 
 
 License

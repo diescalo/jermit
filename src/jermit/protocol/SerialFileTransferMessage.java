@@ -34,6 +34,10 @@ package jermit.protocol;
  */
 public class SerialFileTransferMessage {
 
+    // ------------------------------------------------------------------------
+    // Variables --------------------------------------------------------------
+    // ------------------------------------------------------------------------
+
     /**
      * Type value for an informational message.
      */
@@ -58,6 +62,41 @@ public class SerialFileTransferMessage {
      * The message text.
      */
     private String message;
+
+    // ------------------------------------------------------------------------
+    // Constructors -----------------------------------------------------------
+    // ------------------------------------------------------------------------
+
+    /**
+     * Construct an INFO message.
+     *
+     * @param message the message text
+     */
+    public SerialFileTransferMessage(String message) {
+        time = System.currentTimeMillis();
+        type = INFO;
+        this.message = message;
+    }
+
+    /**
+     * Construct a message.
+     *
+     * @param type INFO or ERROR
+     * @param message the message text
+     * @throws IllegalArgumentException if type is not INFO or ERROR
+     */
+    public SerialFileTransferMessage(int type, String message) {
+        if ((type != INFO) && (type != ERROR)) {
+            throw new IllegalArgumentException("Invalid message type: " + type);
+        }
+        time = System.currentTimeMillis();
+        this.type = type;
+        this.message = message;
+    }
+
+    // ------------------------------------------------------------------------
+    // SerialFileTransferMessage ----------------------------------------------
+    // ------------------------------------------------------------------------
 
     /**
      * Get the message time.
@@ -109,33 +148,6 @@ public class SerialFileTransferMessage {
      */
     public int getType() {
         return type;
-    }
-
-    /**
-     * Construct an INFO message.
-     *
-     * @param message the message text
-     */
-    public SerialFileTransferMessage(String message) {
-        time = System.currentTimeMillis();
-        type = INFO;
-        this.message = message;
-    }
-
-    /**
-     * Construct a message.
-     *
-     * @param type INFO or ERROR
-     * @param message the message text
-     * @throws IllegalArgumentException if type is not INFO or ERROR
-     */
-    public SerialFileTransferMessage(int type, String message) {
-        if ((type != INFO) && (type != ERROR)) {
-            throw new IllegalArgumentException("Invalid message type: " + type);
-        }
-        time = System.currentTimeMillis();
-        this.type = type;
-        this.message = message;
     }
 
 }

@@ -33,10 +33,7 @@ import java.io.InputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 
-import jermit.io.EOFInputStream;
 import jermit.io.LocalFile;
-import jermit.io.LocalFileInterface;
-import jermit.io.ReadTimeoutException;
 import jermit.io.TimeoutInputStream;
 import jermit.protocol.FileInfo;
 import jermit.protocol.FileInfoModifier;
@@ -47,6 +44,10 @@ import jermit.protocol.SerialFileTransferSession;
  */
 public class XmodemReceiver implements Runnable {
 
+    // ------------------------------------------------------------------------
+    // Variables --------------------------------------------------------------
+    // ------------------------------------------------------------------------
+
     // If true, enable some debugging output.
     private static final boolean DEBUG = false;
 
@@ -55,14 +56,9 @@ public class XmodemReceiver implements Runnable {
      */
     protected XmodemSession session;
 
-    /**
-     * Get the session.
-     *
-     * @return the session for this transfer
-     */
-    public XmodemSession getSession() {
-        return session;
-    }
+    // ------------------------------------------------------------------------
+    // Constructors -----------------------------------------------------------
+    // ------------------------------------------------------------------------
 
     /**
      * Construct an instance to download multiple files using existing I/O
@@ -128,6 +124,10 @@ public class XmodemReceiver implements Runnable {
         this(XmodemSession.Flavor.VANILLA, input, output, filename, false);
     }
 
+    // ------------------------------------------------------------------------
+    // Runnable ---------------------------------------------------------------
+    // ------------------------------------------------------------------------
+
     /**
      * Perform a file download using the Xmodem protocol.  Any exceptions
      * thrown will be emitted to System.err.
@@ -152,6 +152,19 @@ public class XmodemReceiver implements Runnable {
             session.setState(SerialFileTransferSession.State.END);
             session.setEndTime(System.currentTimeMillis());
         }
+    }
+
+    // ------------------------------------------------------------------------
+    // XmodemReceiver ---------------------------------------------------------
+    // ------------------------------------------------------------------------
+
+    /**
+     * Get the session.
+     *
+     * @return the session for this transfer
+     */
+    public XmodemSession getSession() {
+        return session;
     }
 
     /**

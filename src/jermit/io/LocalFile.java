@@ -34,7 +34,6 @@ import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.io.RandomAccessFile;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.FileTime;
@@ -44,10 +43,35 @@ import java.nio.file.attribute.FileTime;
  */
 public class LocalFile implements LocalFileInterface {
 
+    // ------------------------------------------------------------------------
+    // Variables --------------------------------------------------------------
+    // ------------------------------------------------------------------------
+
     /**
      * The file on the local filesystem.
      */
     private File file;
+
+    // ------------------------------------------------------------------------
+    // Constructors -----------------------------------------------------------
+    // ------------------------------------------------------------------------
+
+    /**
+     * Construct an instance using a File.
+     *
+     * @param file the File on the local filesystem
+     * @throws IllegalArgumentException if file is not a regular file
+     */
+    public LocalFile(final File file) {
+        if (file.exists() && !file.isFile()) {
+            throw new IllegalArgumentException(file + " is not a normal file");
+        }
+        this.file = file;
+    }
+
+    // ------------------------------------------------------------------------
+    // LocalFileInterface -----------------------------------------------------
+    // ------------------------------------------------------------------------
 
     /**
      * Get an InputStream that will read from this thing.
@@ -158,19 +182,6 @@ public class LocalFile implements LocalFileInterface {
      */
     public void delete() {
         file.delete();
-    }
-
-    /**
-     * Construct an instance using a File.
-     *
-     * @param file the File on the local filesystem
-     * @throws IllegalArgumentException if file is not a regular file
-     */
-    public LocalFile(final File file) {
-        if (file.exists() && !file.isFile()) {
-            throw new IllegalArgumentException(file + " is not a normal file");
-        }
-        this.file = file;
     }
 
 }

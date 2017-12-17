@@ -51,6 +51,10 @@ import jermit.protocol.SerialFileTransferSession;
  */
 public class KermitSession extends SerialFileTransferSession {
 
+    // ------------------------------------------------------------------------
+    // Variables --------------------------------------------------------------
+    // ------------------------------------------------------------------------
+
     // If true, enable some debugging output.
     private static final boolean DEBUG = false;
 
@@ -82,6 +86,77 @@ public class KermitSession extends SerialFileTransferSession {
     private OutputStream output;
 
     /**
+     * If true, permit downloads to overwrite files.
+     */
+    private boolean overwrite = false;
+
+    // ------------------------------------------------------------------------
+    // Constructors -----------------------------------------------------------
+    // ------------------------------------------------------------------------
+
+    /**
+     * Construct an instance to represent a file upload.
+     *
+     * @param input a stream that receives bytes sent by another Kermit
+     * instance
+     * @param output a stream to sent bytes to another Kermit instance
+     * @param uploadFiles list of files to upload
+     * @throws IllegalArgumentException if uploadFiles contains more than one
+     * entry
+     */
+    public KermitSession(final InputStream input, final OutputStream output,
+        final List<String> uploadFiles) {
+
+        super(uploadFiles);
+        this.protocol           = Protocol.KERMIT;
+        this.output             = output;
+        this.currentFile        = -1;
+
+        if (input instanceof TimeoutInputStream) {
+            // Someone has already set the timeout.  Keep their value.
+            this.input  = new EOFInputStream(input);
+        } else {
+            // Use the default value of 10 seconds.
+            this.input  = new EOFInputStream(new TimeoutInputStream(input,
+                    10 * 1000));
+        }
+    }
+
+    /**
+     * Construct an instance to represent a batch download.
+     *
+     * @param input a stream that receives bytes sent by another Kermit
+     * instance
+     * @param output a stream to sent bytes to another Kermit instance
+     * @param pathname the path to write received files to
+     * @param overwrite if true, permit writing to files even if they already
+     * exist
+     */
+    public KermitSession(final InputStream input, final OutputStream output,
+        final String pathname, final boolean overwrite) {
+
+        super(true);
+        this.protocol           = Protocol.KERMIT;
+        this.output             = output;
+        this.currentFile        = -1;
+
+        if (input instanceof TimeoutInputStream) {
+            // Someone has already set the timeout.  Keep their value.
+            this.input  = new EOFInputStream(input);
+        } else {
+            // Use the default value for this flavor of Xmodem.
+            this.input  = new EOFInputStream(new TimeoutInputStream(input,
+                    10 * 1000));
+        }
+        this.overwrite          = overwrite;
+        this.transferDirectory  = pathname;
+    }
+
+    // ------------------------------------------------------------------------
+    // SerialFileTransferSession ----------------------------------------------
+    // ------------------------------------------------------------------------
+
+    /**
      * Get the batchable flag.
      *
      * @return If true, this protocol can transfer multiple files.  If false,
@@ -91,6 +166,64 @@ public class KermitSession extends SerialFileTransferSession {
     public boolean isBatchable() {
         return true;
     }
+
+    /**
+     * Set the state of this transfer.  Overridden to permit kermit package
+     * access.
+     *
+     * @param state one of the State enum values
+     */
+    @Override
+    protected void setState(final State state) {
+        super.setState(state);
+    }
+
+    /**
+     * Add an INFO message to the messages list.  Overridden to permit kermit
+     * package access.
+     *
+     * @param message the message text
+     */
+    @Override
+    protected synchronized void addInfoMessage(String message) {
+        super.addInfoMessage(message);
+    }
+
+    /**
+     * Add an ERROR message to the messages list.  Overridden to permit
+     * kermit package access.
+     *
+     * @param message the message text
+     */
+    @Override
+    protected synchronized void addErrorMessage(String message) {
+        super.addErrorMessage(message);
+    }
+
+    /**
+     * Set the current file being transferred.  Overridden to permit kermit
+     * package access.
+     *
+     * @param currentFile the index in the files list
+     */
+    @Override
+    protected synchronized void setCurrentFile(final int currentFile) {
+        this.currentFile = currentFile;
+    }
+
+    /**
+     * Get input stream to the remote side.  Used by
+     * KermitReceiver/KermitSender to cancel a pending read.
+     *
+     * @return the input stream
+     */
+    protected EOFInputStream getInput() {
+        return input;
+    }
+
+    // ------------------------------------------------------------------------
+    // KermitSession ----------------------------------------------------------
+    // ------------------------------------------------------------------------
 
     /**
      * Set the current status message.
@@ -174,17 +307,6 @@ public class KermitSession extends SerialFileTransferSession {
     }
 
     /**
-     * Set the state of this transfer.  Overridden to permit xmodem package
-     * access.
-     *
-     * @param state one of the State enum values
-     */
-    @Override
-    protected void setState(final State state) {
-        super.setState(state);
-    }
-
-    /**
      * Get the protocol name.  Each protocol can have several variants.
      *
      * @return the protocol name for this transfer
@@ -235,33 +357,6 @@ public class KermitSession extends SerialFileTransferSession {
     }
 
     /**
-     * Construct an instance to represent a single file upload.
-     *
-     * @param input a stream that receives bytes sent by another Kermit
-     * instance
-     * @param output a stream to sent bytes to another Kermit instance
-     * @param uploadFiles list of files to upload
-     * @throws IllegalArgumentException if uploadFiles contains more than one
-     * entry
-     */
-    public KermitSession(final InputStream input, final OutputStream output,
-        final List<String> uploadFiles) {
-
-        super(uploadFiles);
-        this.output             = output;
-        this.currentFile        = -1;
-
-        if (input instanceof TimeoutInputStream) {
-            // Someone has already set the timeout.  Keep their value.
-            this.input  = new EOFInputStream(input);
-        } else {
-            // Use the default value of 10 seconds.
-            this.input  = new EOFInputStream(new TimeoutInputStream(input,
-                    10 * 1000));
-        }
-    }
-
-    /**
      * Cancel this entire file transfer.  The session state will become
      * ABORT.
      *
@@ -299,39 +394,6 @@ public class KermitSession extends SerialFileTransferSession {
     protected FileInfoModifier getCurrentFileInfoModifier() {
         FileInfo file = getCurrentFile();
         return getFileInfoModifier(file);
-    }
-
-    /**
-     * Add an INFO message to the messages list.  Overridden to permit xmodem
-     * package access.
-     *
-     * @param message the message text
-     */
-    @Override
-    protected synchronized void addInfoMessage(String message) {
-        super.addInfoMessage(message);
-    }
-
-    /**
-     * Add an ERROR message to the messages list.  Overridden to permit
-     * xmodem package access.
-     *
-     * @param message the message text
-     */
-    @Override
-    protected synchronized void addErrorMessage(String message) {
-        super.addErrorMessage(message);
-    }
-
-    /**
-     * Set the current file being transferred.  Overridden to permit xmodem
-     * package access.
-     *
-     * @param currentFile the index in the files list
-     */
-    @Override
-    protected synchronized void setCurrentFile(final int currentFile) {
-        this.currentFile = currentFile;
     }
 
 }

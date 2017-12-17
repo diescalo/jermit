@@ -26,86 +26,83 @@
  * @author Kevin Lamonte [kevin.lamonte@gmail.com]
  * @version 1
  */
-package jermit.protocol.ymodem;
+package jermit.protocol.kermit;
 
+import java.io.File;
 import java.io.InputStream;
+import java.io.IOException;
 import java.io.OutputStream;
 
+import jermit.io.EOFInputStream;
+import jermit.io.LocalFile;
+import jermit.io.LocalFileInterface;
+import jermit.io.ReadTimeoutException;
 import jermit.io.TimeoutInputStream;
+import jermit.protocol.FileInfo;
 import jermit.protocol.FileInfoModifier;
 import jermit.protocol.SerialFileTransferSession;
-import jermit.protocol.xmodem.XmodemReceiver;
-import jermit.protocol.xmodem.XmodemSession;
 
 /**
- * YmodemReceiver downloads one or more files using the Ymodem protocol.
+ * KermitReceiver downloads one or more files using the Kermit protocol.
  */
-public class YmodemReceiver extends XmodemReceiver implements Runnable {
-
-    // ------------------------------------------------------------------------
-    // Variables --------------------------------------------------------------
-    // ------------------------------------------------------------------------
+public class KermitReceiver implements Runnable {
 
     // If true, enable some debugging output.
     private static final boolean DEBUG = false;
 
-    // ------------------------------------------------------------------------
-    // Constructors -----------------------------------------------------------
-    // ------------------------------------------------------------------------
+    /**
+     * The Kermit session state.
+     */
+    protected KermitSession session;
+
+    /**
+     * Get the session.
+     *
+     * @return the session for this transfer
+     */
+    public KermitSession getSession() {
+        return session;
+    }
 
     /**
      * Construct an instance to download multiple files using existing I/O
      * Streams.
      *
-     * @param yFlavor the Ymodem flavor to use
-     * @param input a stream that receives bytes sent by a Ymodem file sender
-     * @param output a stream to sent bytes to a Ymodem file sender
+     * @param input a stream that receives bytes sent by a Kermit file sender
+     * @param output a stream to sent bytes to a Kermit file sender
      * @param pathname the path to write received files to
      * @param overwrite if true, permit writing to files even if they already
      * exist
      */
-    public YmodemReceiver(final YmodemSession.YFlavor yFlavor,
-        final InputStream input, final OutputStream output,
+    public KermitReceiver(final InputStream input, final OutputStream output,
         final String pathname, final boolean overwrite) {
 
-        super((yFlavor == YmodemSession.YFlavor.VANILLA ?
-                XmodemSession.Flavor.X_1K : XmodemSession.Flavor.X_1K_G),
-            input, output);
-
-        session = new YmodemSession(yFlavor, input, output, pathname,
-            overwrite);
+        session = new KermitSession(input, output, pathname, overwrite);
     }
 
     /**
      * Construct an instance to download multiple files using existing I/O
      * Streams.
      *
-     * @param input a stream that receives bytes sent by a Ymodem file sender
-     * @param output a stream to sent bytes to a Ymodem file sender
+     * @param input a stream that receives bytes sent by a Kermit file sender
+     * @param output a stream to sent bytes to a Kermit file sender
      * @param pathname the path to write received files to
      */
-    public YmodemReceiver(final InputStream input, final OutputStream output,
+    public KermitReceiver(final InputStream input, final OutputStream output,
         final String pathname) {
 
-        this(YmodemSession.YFlavor.VANILLA, input, output, pathname, false);
+        this(input, output, pathname, false);
     }
 
-    // ------------------------------------------------------------------------
-    // Runnable ---------------------------------------------------------------
-    // ------------------------------------------------------------------------
-
     /**
-     * Perform a file download using the Ymodem protocol.  Any exceptions
+     * Perform a file download using the Kermit protocol.  Any exceptions
      * thrown will be emitted to System.err.
      */
     public void run() {
-        // Cast the XmodemSession to YmodemSession to gain access to its
-        // protected methods.
-        YmodemSession session = getSession();
-
         // Start with init.
         session.setCurrentStatus("INIT");
 
+        /*
         for (;;) {
             if (DEBUG) {
                 System.out.println("Sending NCG...");
@@ -129,6 +126,7 @@ public class YmodemReceiver extends XmodemReceiver implements Runnable {
             downloadFile();
 
         } // for (;;)
+        */
 
         // Switch to the next file.
         synchronized (session) {
@@ -144,10 +142,6 @@ public class YmodemReceiver extends XmodemReceiver implements Runnable {
 
     }
 
-    // ------------------------------------------------------------------------
-    // XmodemReceiver ---------------------------------------------------------
-    // ------------------------------------------------------------------------
-
     /**
      * Cancel this entire file transfer.  The session state will become
      * ABORT.
@@ -155,12 +149,7 @@ public class YmodemReceiver extends XmodemReceiver implements Runnable {
      * @param keepPartial If true, save whatever has been collected if this
      * was a download.  If false, delete the file.
      */
-    @Override
     public void cancelTransfer(boolean keepPartial) {
-        // Cast the XmodemSession to YmodemSession to gain access to its
-        // protected methods.
-        YmodemSession session = getSession();
-
         synchronized (session) {
             if (session.getCurrentFile() != null) {
                 FileInfoModifier setFile = session.getCurrentFileInfoModifier();
@@ -175,30 +164,15 @@ public class YmodemReceiver extends XmodemReceiver implements Runnable {
     }
 
     /**
-     * Skip this file and move to the next file in the transfer.  Note that
-     * this does nothing for Ymodem.
+     * Skip this file and move to the next file in the transfer.
      *
      * @param keepPartial If true, save whatever has been collected if this
      * was a download.  If false, delete the file.
      */
-    @Override
     public void skipFile(boolean keepPartial) {
         synchronized (session) {
             session.skipFile(keepPartial);
         }
-    }
-
-    // ------------------------------------------------------------------------
-    // YmodemReceiver ---------------------------------------------------------
-    // ------------------------------------------------------------------------
-
-    /**
-     * Get the session.
-     *
-     * @return the session for this transfer
-     */
-    public YmodemSession getSession() {
-        return (YmodemSession) session;
     }
 
 }

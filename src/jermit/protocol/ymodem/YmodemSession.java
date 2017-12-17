@@ -34,13 +34,11 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.UnsupportedEncodingException;
-import java.util.LinkedList;
 import java.util.List;
 
 import jermit.io.EOFInputStream;
 import jermit.io.LocalFile;
 import jermit.io.LocalFileInterface;
-import jermit.io.TimeoutInputStream;
 import jermit.protocol.FileInfo;
 import jermit.protocol.FileInfoModifier;
 import jermit.protocol.Protocol;
@@ -52,6 +50,10 @@ import jermit.protocol.xmodem.XmodemSession;
  * using the Ymodem protocol.
  */
 public class YmodemSession extends XmodemSession {
+
+    // ------------------------------------------------------------------------
+    // Variables --------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
     // If true, enable some debugging output.
     private static final boolean DEBUG = false;
@@ -84,14 +86,60 @@ public class YmodemSession extends XmodemSession {
      */
     private boolean overwrite = false;
 
+    // ------------------------------------------------------------------------
+    // Constructors -----------------------------------------------------------
+    // ------------------------------------------------------------------------
+
     /**
-     * Get the type of Ymodem transfer to perform.
+     * Construct an instance to represent a file upload.
      *
-     * @return the Ymodem flavor
+     * @param yFlavor the Ymodem flavor to use
+     * @param input a stream that receives bytes sent by another Ymodem
+     * instance
+     * @param output a stream to sent bytes to another Ymodem instance
+     * @param uploadFiles list of files to upload
+     * @throws IllegalArgumentException if uploadFiles contains more than one
+     * entry
      */
-    public YFlavor getYFlavor() {
-        return yFlavor;
+    public YmodemSession(final YFlavor yFlavor, final InputStream input,
+        final OutputStream output, final List<String> uploadFiles) {
+
+        super((yFlavor == YmodemSession.YFlavor.VANILLA ?
+                XmodemSession.Flavor.X_1K : XmodemSession.Flavor.X_1K_G),
+            input, output, uploadFiles);
+
+        this.yFlavor   = yFlavor;
+        this.protocol  = Protocol.YMODEM;
     }
+
+    /**
+     * Construct an instance to represent a batch download.
+     *
+     * @param yFlavor the Ymodem flavor to use
+     * @param input a stream that receives bytes sent by another Ymodem
+     * instance
+     * @param output a stream to sent bytes to another Ymodem instance
+     * @param pathname the path to write received files to
+     * @param overwrite if true, permit writing to files even if they already
+     * exist
+     */
+    public YmodemSession(final YFlavor yFlavor, final InputStream input,
+        final OutputStream output, final String pathname,
+        final boolean overwrite) {
+
+        super((yFlavor == YmodemSession.YFlavor.VANILLA ?
+                XmodemSession.Flavor.X_1K : XmodemSession.Flavor.X_1K_G),
+            input, output, true);
+
+        this.yFlavor            = yFlavor;
+        this.protocol           = Protocol.YMODEM;
+        this.overwrite          = overwrite;
+        this.transferDirectory  = pathname;
+    }
+
+    // ------------------------------------------------------------------------
+    // XmodemSession ----------------------------------------------------------
+    // ------------------------------------------------------------------------
 
     /**
      * Get the batchable flag.
@@ -263,53 +311,6 @@ public class YmodemSession extends XmodemSession {
     }
 
     /**
-     * Construct an instance to represent a file upload.
-     *
-     * @param yFlavor the Ymodem flavor to use
-     * @param input a stream that receives bytes sent by another Ymodem
-     * instance
-     * @param output a stream to sent bytes to another Ymodem instance
-     * @param uploadFiles list of files to upload
-     * @throws IllegalArgumentException if uploadFiles contains more than one
-     * entry
-     */
-    public YmodemSession(final YFlavor yFlavor, final InputStream input,
-        final OutputStream output, final List<String> uploadFiles) {
-
-        super((yFlavor == YmodemSession.YFlavor.VANILLA ?
-                XmodemSession.Flavor.X_1K : XmodemSession.Flavor.X_1K_G),
-            input, output, uploadFiles);
-
-        this.yFlavor   = yFlavor;
-        this.protocol  = Protocol.YMODEM;
-    }
-
-    /**
-     * Construct an instance to represent a batch download.
-     *
-     * @param yFlavor the Ymodem flavor to use
-     * @param input a stream that receives bytes sent by another Ymodem
-     * instance
-     * @param output a stream to sent bytes to another Ymodem instance
-     * @param pathname the path to write received files to
-     * @param overwrite if true, permit writing to files even if they already
-     * exist
-     */
-    public YmodemSession(final YFlavor yFlavor, final InputStream input,
-        final OutputStream output, final String pathname,
-        final boolean overwrite) {
-
-        super((yFlavor == YmodemSession.YFlavor.VANILLA ?
-                XmodemSession.Flavor.X_1K : XmodemSession.Flavor.X_1K_G),
-            input, output, true);
-
-        this.yFlavor            = yFlavor;
-        this.protocol           = Protocol.YMODEM;
-        this.overwrite          = overwrite;
-        this.transferDirectory  = pathname;
-    }
-
-    /**
      * Create a FileInfoModifier for the current file being transferred.
      * This is used for YmodemSender and YmodemReceiver to get write access
      * to the FileInfo fields.
@@ -353,16 +354,6 @@ public class YmodemSession extends XmodemSession {
     }
 
     /**
-     * Get input stream to the remote side.  Used by
-     * YmodemReceiver/YmodemSender to cancel a pending read.
-     *
-     * @return the input stream
-     */
-    protected EOFInputStream getInput() {
-        return input;
-    }
-
-    /**
      * Send the appropriate "NAK/ACK" character for this flavor of Xmodem.
      * Overridden to permit ymodem package access.
      *
@@ -371,6 +362,29 @@ public class YmodemSession extends XmodemSession {
     @Override
     protected boolean sendNCG() {
         return super.sendNCG();
+    }
+
+    // ------------------------------------------------------------------------
+    // YmodemSession ----------------------------------------------------------
+    // ------------------------------------------------------------------------
+
+    /**
+     * Get the type of Ymodem transfer to perform.
+     *
+     * @return the Ymodem flavor
+     */
+    public YFlavor getYFlavor() {
+        return yFlavor;
+    }
+
+    /**
+     * Get input stream to the remote side.  Used by
+     * YmodemReceiver/YmodemSender to cancel a pending read.
+     *
+     * @return the input stream
+     */
+    protected EOFInputStream getInput() {
+        return input;
     }
 
     /**

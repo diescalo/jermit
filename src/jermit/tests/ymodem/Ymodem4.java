@@ -86,7 +86,7 @@ public class Ymodem4 extends SerialTransferTest implements Runnable {
         pairs[2].name = "William-Adolphe_Bouguereau_(1825-1905)_-_A_Young_Girl_Defending_Herself_Against_Eros_(1880).jpg";
         pairs[3].name = "rfc856.txt";
 
-        LinkedList<String> files = new LinkedList<String>();
+        List<String> files = new LinkedList<String>();
 
         for (int i = 0; i < pairs.length; i++) {
             File source = File.createTempFile("send-ymodem", "");

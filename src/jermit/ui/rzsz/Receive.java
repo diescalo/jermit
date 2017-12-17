@@ -28,8 +28,6 @@
  */
 package jermit.ui.rzsz;
 
-import java.util.LinkedList;
-
 import jermit.protocol.FileInfo;
 import jermit.protocol.Protocol;
 import jermit.protocol.SerialFileTransferSession;
@@ -45,6 +43,10 @@ import jermit.ui.posix.Stty;
  * programs.
  */
 public class Receive {
+
+    // ------------------------------------------------------------------------
+    // Variables --------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
     /**
      * The protocol to select.  Most people want Zmodem, so default to that.
@@ -81,6 +83,60 @@ public class Receive {
      * If set, stop the transfer after this many millis.
      */
     private long stopTime = -1;
+
+    // ------------------------------------------------------------------------
+    // Constructors -----------------------------------------------------------
+    // ------------------------------------------------------------------------
+
+    /**
+     * Construct a new instance.  Made private so that the only way to get
+     * here is via the static main() method.
+     *
+     * @param args the command line args.
+     */
+    private Receive(final String [] args) {
+        // Iterate the list of command line arguments, extracting options and
+        // saving the last as a filename.
+        boolean noMoreArgs = false;
+        for (int i = 0; i < args.length; i++) {
+            if (noMoreArgs == false) {
+                if (args[i].equals("--")) {
+                    // "--" means treat everything afterwards like a
+                    // filename.
+                    noMoreArgs = true;
+                    continue;
+                }
+                if (args[i].startsWith("-")) {
+                    // This is an argument, process it.
+                    if (processArg(args[i]) == false) {
+                        if (i < args.length - 1) {
+                            processTwoArgs(args[i], args[i + 1]);
+                            i++;
+                        } else {
+                            System.err.println("Warning: command line option " +
+                                args[i] + " expects an argument");
+                        }
+                    }
+                } else {
+                    // This is a filename, it does not start with "-".
+                    xmodemFile = args[i];
+                }
+            } else {
+                // "--" was seen, so this is a filename.
+                xmodemFile = args[i];
+            }
+        } // for (int i = 0; i < args.length; i++)
+
+        if ((xmodemFile == null) && (protocol == Protocol.XMODEM)) {
+            System.err.println("jermit: xmodem needs filename to receive to");
+            System.err.println("Try jermit --help for more information.");
+            System.exit(2);
+        }
+    }
+
+    // ------------------------------------------------------------------------
+    // Receive ----------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
     /**
      * Execute the file transfer, whatever that is.
@@ -417,52 +473,6 @@ public class Receive {
             // TODO
         }
 
-    }
-
-    /**
-     * Construct a new instance.  Made private so that the only way to get
-     * here is via the static main() method.
-     *
-     * @param args the command line args.
-     */
-    private Receive(final String [] args) {
-        // Iterate the list of command line arguments, extracting options and
-        // saving the last as a filename.
-        boolean noMoreArgs = false;
-        for (int i = 0; i < args.length; i++) {
-            if (noMoreArgs == false) {
-                if (args[i].equals("--")) {
-                    // "--" means treat everything afterwards like a
-                    // filename.
-                    noMoreArgs = true;
-                    continue;
-                }
-                if (args[i].startsWith("-")) {
-                    // This is an argument, process it.
-                    if (processArg(args[i]) == false) {
-                        if (i < args.length - 1) {
-                            processTwoArgs(args[i], args[i + 1]);
-                            i++;
-                        } else {
-                            System.err.println("Warning: command line option " +
-                                args[i] + " expects an argument");
-                        }
-                    }
-                } else {
-                    // This is a filename, it does not start with "-".
-                    xmodemFile = args[i];
-                }
-            } else {
-                // "--" was seen, so this is a filename.
-                xmodemFile = args[i];
-            }
-        } // for (int i = 0; i < args.length; i++)
-
-        if ((xmodemFile == null) && (protocol == Protocol.XMODEM)) {
-            System.err.println("jermit: xmodem needs filename to receive to");
-            System.err.println("Try jermit --help for more information.");
-            System.exit(2);
-        }
     }
 
     /**

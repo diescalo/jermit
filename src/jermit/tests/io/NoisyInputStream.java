@@ -30,7 +30,6 @@ package jermit.tests.io;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.Calendar;
 
 /**
  * This class randomly screws up read()s on an InputStream.

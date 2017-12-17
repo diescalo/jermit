@@ -32,15 +32,11 @@ import java.util.List;
 import java.util.LinkedList;
 
 import jermit.protocol.FileInfo;
-import jermit.protocol.Protocol;
-import jermit.protocol.SerialFileTransferMessage;
 import jermit.protocol.SerialFileTransferSession;
 import jermit.protocol.xmodem.XmodemReceiver;
 import jermit.protocol.xmodem.XmodemSender;
-import jermit.protocol.xmodem.XmodemSession;
 import jermit.protocol.ymodem.YmodemReceiver;
 import jermit.protocol.ymodem.YmodemSender;
-import jermit.protocol.ymodem.YmodemSession;
 
 import jermit.ui.qodem.jexer.bits.Color;
 import jermit.ui.qodem.jexer.bits.CellAttributes;
@@ -56,6 +52,10 @@ import static jermit.ui.qodem.jexer.TKeypress.*;
  * This class displays a progress bar screen similar to Qodem.
  */
 public class QodemUI implements Runnable {
+
+    // ------------------------------------------------------------------------
+    // Variables --------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
     /**
      * The file transfer session.
@@ -85,6 +85,40 @@ public class QodemUI implements Runnable {
     CellAttributes label;
     CellAttributes text;
     CellAttributes status;
+
+    /**
+     * If true, a mouse motion event has occurred.
+     */
+    private boolean mouseHasMoved = false;
+
+    /**
+     * Actual mouse coordinate X.
+     */
+    private int mouseX;
+
+    /**
+     * Actual mouse coordinate Y.
+     */
+    private int mouseY;
+
+    /**
+     * Old version of mouse coordinate X.
+     */
+    private int oldMouseX;
+
+    /**
+     * Old version mouse coordinate Y.
+     */
+    private int oldMouseY;
+
+    /**
+     * If true, bail out of run().
+     */
+    private boolean done = false;
+
+    // ------------------------------------------------------------------------
+    // Constructors -----------------------------------------------------------
+    // ------------------------------------------------------------------------
 
     /**
      * Public constructor.
@@ -120,35 +154,66 @@ public class QodemUI implements Runnable {
         terminal = new SwingTerminal(this, screen);
     }
 
-    /**
-     * If true, a mouse motion event has occurred.
-     */
-    private boolean mouseHasMoved = false;
+    // ------------------------------------------------------------------------
+    // Runnable ---------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
     /**
-     * Actual mouse coordinate X.
+     * Monitor the file transfer, updating the progress bar and other
+     * statistics as they are modified by the session.
      */
-    private int mouseX;
+    public void run() {
 
-    /**
-     * Actual mouse coordinate Y.
-     */
-    private int mouseY;
+        try {
 
-    /**
-     * Old version of mouse coordinate X.
-     */
-    private int oldMouseX;
+            // At the end of the transfer, we can wait up to 3 seconds.
+            long waitStart = 0;
 
-    /**
-     * Old version mouse coordinate Y.
-     */
-    private int oldMouseY;
+            while (done == false) {
 
-    /**
-     * If true, bail out of run().
-     */
-    private boolean done = false;
+                getEvents();
+
+                synchronized (screen) {
+                    drawScreen();
+                }
+
+                synchronized (session) {
+                    SerialFileTransferSession.State state = session.getState();
+                    if ((state == SerialFileTransferSession.State.ABORT) ||
+                        (state == SerialFileTransferSession.State.END)
+                    ) {
+                        if (waitStart == 0) {
+                            waitStart = System.currentTimeMillis();
+                        } else {
+                            // Wait up to 3 seconds before stopping.
+                            if (System.currentTimeMillis() - waitStart > 3000) {
+                                // All done, bail out.
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                try {
+                    // Wait for a notification on the session.
+                    synchronized (session) {
+                        session.wait(50);
+                    }
+                } catch (InterruptedException e) {
+                    // SQUASH
+                }
+
+            } // while (done == false)
+
+            screen.shutdown();
+        } catch (Throwable t) {
+            t.printStackTrace();
+        }
+    }
+
+    // ------------------------------------------------------------------------
+    // QodemUI ----------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
     /**
      * Get keyboard, mouse, and screen resize events.
@@ -416,59 +481,6 @@ public class QodemUI implements Runnable {
 
         // Push to the user
         screen.flushPhysical();
-    }
-
-    /**
-     * Monitor the file transfer, updating the progress bar and other
-     * statistics as they are modified by the session.
-     */
-    public void run() {
-
-        try {
-
-            // At the end of the transfer, we can wait up to 3 seconds.
-            long waitStart = 0;
-
-            while (done == false) {
-
-                getEvents();
-
-                synchronized (screen) {
-                    drawScreen();
-                }
-
-                synchronized (session) {
-                    SerialFileTransferSession.State state = session.getState();
-                    if ((state == SerialFileTransferSession.State.ABORT) ||
-                        (state == SerialFileTransferSession.State.END)
-                    ) {
-                        if (waitStart == 0) {
-                            waitStart = System.currentTimeMillis();
-                        } else {
-                            // Wait up to 3 seconds before stopping.
-                            if (System.currentTimeMillis() - waitStart > 3000) {
-                                // All done, bail out.
-                                break;
-                            }
-                        }
-                    }
-                }
-
-                try {
-                    // Wait for a notification on the session.
-                    synchronized (session) {
-                        session.wait(50);
-                    }
-                } catch (InterruptedException e) {
-                    // SQUASH
-                }
-
-            } // while (done == false)
-
-            screen.shutdown();
-        } catch (Throwable t) {
-            t.printStackTrace();
-        }
     }
 
 }
