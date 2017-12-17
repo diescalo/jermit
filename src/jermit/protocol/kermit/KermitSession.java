@@ -61,13 +61,13 @@ public class KermitSession extends SerialFileTransferSession {
     /**
      * The current sequence number.
      */
-    protected int sequenceNumber = 1;
+    private int sequenceNumber = 1;
 
     /**
      * The number of consecutive errors.  After 10 errors, the transfer is
      * cancelled.
      */
-    protected int consecutiveErrors = 0;
+    private int consecutiveErrors = 0;
 
     /**
      * If 0, nothing was cancelled.  If 1, cancel and keep partial (default
@@ -78,7 +78,7 @@ public class KermitSession extends SerialFileTransferSession {
     /**
      * The bytes received from the remote side.
      */
-    protected EOFInputStream input;
+    private EOFInputStream input;
 
     /**
      * The bytes sent to the remote side.
@@ -89,6 +89,11 @@ public class KermitSession extends SerialFileTransferSession {
      * If true, permit downloads to overwrite files.
      */
     private boolean overwrite = false;
+
+    /**
+     * The current state of the transfer.
+     */
+    private KermitState kermitState = KermitState.INIT;
 
     // ------------------------------------------------------------------------
     // Constructors -----------------------------------------------------------
@@ -157,6 +162,17 @@ public class KermitSession extends SerialFileTransferSession {
     // ------------------------------------------------------------------------
 
     /**
+     * Get the block size.
+     *
+     * @return the block size
+     */
+    @Override
+    public int getBlockSize() {
+        // TODO
+        return 128;
+    }
+
+    /**
      * Get the batchable flag.
      *
      * @return If true, this protocol can transfer multiple files.  If false,
@@ -212,6 +228,52 @@ public class KermitSession extends SerialFileTransferSession {
     }
 
     /**
+     * Cancel this entire file transfer.  The session state will become
+     * ABORT.
+     *
+     * @param keepPartial If true, save whatever has been collected if this
+     * was a download.  If false, delete the file.
+     */
+    @Override
+    public void cancelTransfer(boolean keepPartial) {
+        synchronized (this) {
+            setState(State.ABORT);
+            if (keepPartial == true) {
+                cancelFlag = 1;
+            } else {
+                cancelFlag = 2;
+            }
+            addErrorMessage("CANCELLED BY USER");
+        }
+    }
+
+    /**
+     * Skip this file and move to the next file in the transfer.  Note that
+     * this does nothing for Kermit.
+     *
+     * @param keepPartial If true, save whatever has been collected if this
+     * was a download.  If false, delete the file.
+     */
+    @Override
+    public void skipFile(boolean keepPartial) {
+        // TODO
+    }
+
+    /**
+     * Get the protocol name.  Each protocol can have several variants.
+     *
+     * @return the protocol name for this transfer
+     */
+    @Override
+    public String getProtocolName() {
+        return "Kermit";
+    }
+
+    // ------------------------------------------------------------------------
+    // KermitSession ----------------------------------------------------------
+    // ------------------------------------------------------------------------
+
+    /**
      * Get input stream to the remote side.  Used by
      * KermitReceiver/KermitSender to cancel a pending read.
      *
@@ -221,9 +283,23 @@ public class KermitSession extends SerialFileTransferSession {
         return input;
     }
 
-    // ------------------------------------------------------------------------
-    // KermitSession ----------------------------------------------------------
-    // ------------------------------------------------------------------------
+    /**
+     * Get the Kermit protocol transfer state.
+     *
+     * @return the state
+     */
+    public KermitState getKermitState() {
+        return kermitState;
+    }
+
+    /**
+     * Set the Kermit protocol transfer state.
+     *
+     * @param kermitState the new state
+     */
+    public void setKermitState(final KermitState kermitState) {
+        this.kermitState = kermitState;
+    }
 
     /**
      * Set the current status message.
@@ -240,7 +316,7 @@ public class KermitSession extends SerialFileTransferSession {
      * @param transferDirectory the directory that contains the file(s) of
      * this transfer
      */
-    protected void setTransferDirectory(final String transferDirectory) {
+    private void setTransferDirectory(final String transferDirectory) {
         this.transferDirectory = transferDirectory;
     }
 
@@ -250,7 +326,7 @@ public class KermitSession extends SerialFileTransferSession {
      * @param bytesTransferred the number of bytes transferred in this
      * session
      */
-    protected void setBytesTransferred(final long bytesTransferred) {
+    private void setBytesTransferred(final long bytesTransferred) {
         this.bytesTransferred = bytesTransferred;
     }
 
@@ -260,7 +336,7 @@ public class KermitSession extends SerialFileTransferSession {
      * @param bytesTotal the number of bytes in total to transfer in this
      * session
      */
-    protected void setBytesTotal(final long bytesTotal) {
+    private void setBytesTotal(final long bytesTotal) {
         this.bytesTotal = bytesTotal;
     }
 
@@ -270,7 +346,7 @@ public class KermitSession extends SerialFileTransferSession {
      * @param blocksTransferred the number of blocks transferred in this
      * session
      */
-    protected void setBlocksTransferred(final long blocksTransferred) {
+    private void setBlocksTransferred(final long blocksTransferred) {
         this.blocksTransferred = blocksTransferred;
     }
 
@@ -280,7 +356,7 @@ public class KermitSession extends SerialFileTransferSession {
      * @param lastBlockMillis the time at which last block was sent or
      * received
      */
-    protected void setLastBlockMillis(final long lastBlockMillis) {
+    private void setLastBlockMillis(final long lastBlockMillis) {
         this.lastBlockMillis = lastBlockMillis;
     }
 
@@ -291,7 +367,7 @@ public class KermitSession extends SerialFileTransferSession {
      * @param startTime the time at which this session started transferring
      * its first file
      */
-    protected void setStartTime(final long startTime) {
+    private void setStartTime(final long startTime) {
         this.startTime = startTime;
     }
 
@@ -307,31 +383,12 @@ public class KermitSession extends SerialFileTransferSession {
     }
 
     /**
-     * Get the protocol name.  Each protocol can have several variants.
-     *
-     * @return the protocol name for this transfer
-     */
-    public String getProtocolName() {
-        return "Kermit";
-    }
-
-    /**
-     * Get the block size.  Each protocol can have several variants.
-     *
-     * @return the block size
-     */
-    public int getBlockSize() {
-        // TODO
-        return 128;
-    }
-
-    /**
      * Count a timeout, cancelling the transfer if there are too many
      * consecutive errors.
      *
      * @throws IOException if a java.io operation throws
      */
-    protected synchronized void timeout() throws IOException {
+    private synchronized void timeout() throws IOException {
 
         if (DEBUG) {
             System.err.println("TIMEOUT");
@@ -357,36 +414,6 @@ public class KermitSession extends SerialFileTransferSession {
     }
 
     /**
-     * Cancel this entire file transfer.  The session state will become
-     * ABORT.
-     *
-     * @param keepPartial If true, save whatever has been collected if this
-     * was a download.  If false, delete the file.
-     */
-    public void cancelTransfer(boolean keepPartial) {
-        synchronized (this) {
-            setState(State.ABORT);
-            if (keepPartial == true) {
-                cancelFlag = 1;
-            } else {
-                cancelFlag = 2;
-            }
-            addErrorMessage("CANCELLED BY USER");
-        }
-    }
-
-    /**
-     * Skip this file and move to the next file in the transfer.  Note that
-     * this does nothing for Kermit.
-     *
-     * @param keepPartial If true, save whatever has been collected if this
-     * was a download.  If false, delete the file.
-     */
-    public void skipFile(boolean keepPartial) {
-        // TODO
-    }
-
-    /**
      * Create a FileInfoModifier for the current file being transferred.
      * This is used for KermitSender and KermitReceiver to get write access
      * to the FileInfo fields.
@@ -394,6 +421,16 @@ public class KermitSession extends SerialFileTransferSession {
     protected FileInfoModifier getCurrentFileInfoModifier() {
         FileInfo file = getCurrentFile();
         return getFileInfoModifier(file);
+    }
+
+    /**
+     * Encode and send a packet onto the wire.
+     *
+     * @param packet the packet to send
+     * @throws IOException if a java.io operation throws
+     */
+    protected void sendPacket(final Packet packet) throws IOException {
+        // TODO
     }
 
 }

@@ -49,6 +49,15 @@ public class NakPacket extends Packet {
     }
 
     /**
+     * Public constructor.
+     *
+     * @param seq sequence number of the packet this NAK is in response to
+     */
+    public NakPacket(final byte seq) {
+        this(ParseState.OK, seq);
+    }
+
+    /**
      * NAKs by definition have no data field.
      *
      * @throws KermitProtocolException if the other side violates the Kermit

@@ -210,9 +210,7 @@ public class Receive {
             } catch (InterruptedException e) {
                 // SQUASH
             }
-            if ((!transferThread.isAlive()) &&
-                (!sessionStatusThread.isAlive())
-            ) {
+            if (!transferThread.isAlive() && !sessionStatusThread.isAlive()) {
                 // Both threads have completed (or died), bail out.
                 break;
             }
@@ -337,41 +335,41 @@ public class Receive {
          */
 
         // One-argument parameters ignored.
-        if (arg.equals("-a") || arg.equals("--ascii") ||
-            arg.equals("-b") || arg.equals("--binary") ||
-            arg.equals("-C") || arg.equals("--allow-remote-commands") ||
-            arg.equals("-D") || arg.equals("--null") ||
-            arg.equals("--errors") ||
-            arg.equals("--o-sync") ||
-            arg.equals("-O") || arg.equals("--disable-timeouts") ||
-            arg.equals("-R") || arg.equals("--restricted") ||
-            arg.equals("-S") || arg.equals("--timesync") ||
-            arg.equals("--syslog") || arg.equals("--syslog=off") ||
-            arg.equals("-u") || arg.equals("--keep-uppercase") ||
-            arg.equals("-U") || arg.equals("--unrestrict") ||
-            arg.equals("-tcp") ||
-            arg.equals("-tcp-server")
+        if (arg.equals("-a") || arg.equals("--ascii")
+            || arg.equals("-b") || arg.equals("--binary")
+            || arg.equals("-C") || arg.equals("--allow-remote-commands")
+            || arg.equals("-D") || arg.equals("--null")
+            || arg.equals("--errors")
+            || arg.equals("--o-sync")
+            || arg.equals("-O") || arg.equals("--disable-timeouts")
+            || arg.equals("-R") || arg.equals("--restricted")
+            || arg.equals("-S") || arg.equals("--timesync")
+            || arg.equals("--syslog") || arg.equals("--syslog=off")
+            || arg.equals("-u") || arg.equals("--keep-uppercase")
+            || arg.equals("-U") || arg.equals("--unrestrict")
+            || arg.equals("-tcp")
+            || arg.equals("-tcp-server")
         ) {
             return true;
         }
 
         // Two-argument parameters ignored.
-        if (arg.equals("-B") || arg.equals("--bufsize") ||
-            arg.equals("-m") || arg.equals("--min-bps") ||
-            arg.equals("-M") || arg.equals("--min-bps-time") ||
-            arg.equals("--tcp-client")
+        if (arg.equals("-B") || arg.equals("--bufsize")
+            || arg.equals("-m") || arg.equals("--min-bps")
+            || arg.equals("-M") || arg.equals("--min-bps-time")
+            || arg.equals("--tcp-client")
         ) {
             return false;
         }
 
         // Two-agument parameters honored, but not here.  Ask for them to be
         // run through processTwoArgs().
-        if (arg.equals("--delay-startup") ||
-            arg.equals("-l") || arg.equals("--framelen") ||
-            arg.equals("-L") || arg.equals("--packetlen") ||
-            arg.equals("-s") || arg.equals("--stop-at") ||
-            arg.equals("-t") || arg.equals("--timeout") ||
-            arg.equals("-w") || arg.equals("--windowsize")
+        if (arg.equals("--delay-startup")
+            || arg.equals("-l") || arg.equals("--framelen")
+            || arg.equals("-L") || arg.equals("--packetlen")
+            || arg.equals("-s") || arg.equals("--stop-at")
+            || arg.equals("-t") || arg.equals("--timeout")
+            || arg.equals("-w") || arg.equals("--windowsize")
         ) {
             return false;
         }

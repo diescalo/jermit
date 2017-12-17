@@ -75,8 +75,8 @@ class SendInitPacket extends Packet {
     public SendInitPacket(final Packet packet) throws KermitProtocolException {
         this();
 
-        assert ((packet instanceof AckPacket) ||
-            (packet instanceof SendInitPacket));
+        assert ((packet instanceof AckPacket)
+            || (packet instanceof SendInitPacket));
 
         // Grab a copy of their data
         this.data = new byte[packet.data.length];

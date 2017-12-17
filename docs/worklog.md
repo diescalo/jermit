@@ -13,6 +13,12 @@ super.  Do I need those?  Let's see what happens if I pull them out.
 Nope, that right I need them to provide ymodem package access to those
 xmodem package functions.  OK, so far so good.
 
+Starting to stub in Kermit receive now.  This one will have to evolve
+much like Xmodem did, one packet type at a time.  I had some D code
+that was a rough semi-OOPish transliteration of the Qodem code, but
+looking back at it now it is a baroque mess.  So this code will be a
+mostly new offshoot closer to the original Qodem code in spirit.
+
 June 21, 2017
 
 With Qodem 1.0.0 released, I now have some time to put towards

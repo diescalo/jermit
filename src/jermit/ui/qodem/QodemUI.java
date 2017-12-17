@@ -179,8 +179,8 @@ public class QodemUI implements Runnable {
 
                 synchronized (session) {
                     SerialFileTransferSession.State state = session.getState();
-                    if ((state == SerialFileTransferSession.State.ABORT) ||
-                        (state == SerialFileTransferSession.State.END)
+                    if ((state == SerialFileTransferSession.State.ABORT) 
+                        || (state == SerialFileTransferSession.State.END)
                     ) {
                         if (waitStart == 0) {
                             waitStart = System.currentTimeMillis();
@@ -242,18 +242,18 @@ public class QodemUI implements Runnable {
             }
 
             if (event instanceof TKeypressEvent) {
-                if ((session.getState() == SerialFileTransferSession.State.END) ||
-                    (session.getState() == SerialFileTransferSession.State.ABORT)
+                if ((session.getState() == SerialFileTransferSession.State.END) 
+                    || (session.getState() == SerialFileTransferSession.State.ABORT)
                 ) {
                     done = true;
                 }
 
                 TKeypressEvent keypress = (TKeypressEvent) event;
-                if (keypress.equals(kbCtrlC) ||
-                    keypress.equals(kbEsc) ||
+                if (keypress.equals(kbCtrlC) 
+                    || keypress.equals(kbEsc) 
                     // Backtick cancels too.
-                    ((keypress.getKey().isFnKey() == false) &&
-                        (keypress.getKey().getChar() == '`'))
+                    || ((keypress.getKey().isFnKey() == false)
+                        && (keypress.getKey().getChar() == '`'))
                 ) {
                     if (xmodemReceiver != null) {
                         xmodemReceiver.cancelTransfer(true);
@@ -375,8 +375,8 @@ public class QodemUI implements Runnable {
          * Time fields
          */
         if (file != null) {
-            if ((session.getState() == SerialFileTransferSession.State.END) ||
-                (session.getState() == SerialFileTransferSession.State.ABORT)
+            if ((session.getState() == SerialFileTransferSession.State.END) 
+                || (session.getState() == SerialFileTransferSession.State.ABORT)
             ) {
                 transferTime = file.getEndTime() - file.getStartTime();
                 if (transferTime < 0) {
@@ -394,8 +394,8 @@ public class QodemUI implements Runnable {
             timeElapsedString = String.format("%02d:%02d:%02d",
                 hours, minutes, seconds);
 
-            if ((session.getState() == SerialFileTransferSession.State.END) ||
-                (session.getState() == SerialFileTransferSession.State.ABORT)
+            if ((session.getState() == SerialFileTransferSession.State.END) 
+                || (session.getState() == SerialFileTransferSession.State.ABORT)
             ) {
                 remainingTime = 0;
             }

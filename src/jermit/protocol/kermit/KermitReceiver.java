@@ -102,31 +102,39 @@ public class KermitReceiver implements Runnable {
         // Start with init.
         session.setCurrentStatus("INIT");
 
-        /*
-        for (;;) {
-            if (DEBUG) {
-                System.out.println("Sending NCG...");
-            }
-            synchronized (session) {
-                session.setState(SerialFileTransferSession.State.FILE_INFO);
-            }
+        while (session.cancelFlag == 0) {
 
-            if (session.sendNCG() == false) {
-                // Failed to handshake, bail out.
+            switch (session.getKermitState()) {
+
+            case INIT:
+                session.setKermitState(KermitState.KM_R);
+                break;
+
+            case KM_R:
+                if (DEBUG) {
+                    System.out.println("Sending NAK(0)...");
+                }
+                try {
+                    session.sendPacket(new NakPacket((byte) 0));
+                } catch (IOException e) {
+                    if (DEBUG) {
+                        e.printStackTrace();
+                    }
+                    session.abort("NETWORK I/O ERROR");
+                    session.cancelFlag = 1;
+                    // Fall through to the fileInput.close().
+                }
+                
+                session.setKermitState(KermitState.KM_RW);
+                break;
+
+            default:
+                // TODO
                 break;
             }
 
-            // Read block 0, setup new file or terminate.
-            if (session.readBlock0() == false) {
-                // No more files to transfer.
-                break;
-            }
 
-            // Download the file.
-            downloadFile();
-
-        } // for (;;)
-        */
+        } // while (session.cancelFlag == 0)
 
         // Switch to the next file.
         synchronized (session) {

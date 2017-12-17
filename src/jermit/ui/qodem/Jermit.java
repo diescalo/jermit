@@ -269,9 +269,7 @@ public class Jermit {
             } catch (InterruptedException e) {
                 // SQUASH
             }
-            if ((!transferThread.isAlive()) &&
-                (!uiThread.isAlive())
-            ) {
+            if (!transferThread.isAlive() && !uiThread.isAlive()) {
                 // Both threads have completed (or died), bail out.
                 break;
             }

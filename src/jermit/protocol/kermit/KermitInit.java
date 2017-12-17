@@ -400,16 +400,17 @@ class KermitInit {
 
         // QBIN - see what they ask for
         if (remote.QBIN == 'Y') {
-            if (((local.QBIN >= 33) && (local.QBIN <= 62)) ||
-                ((local.QBIN >= 96) && (local.QBIN <= 126))
+            if (((local.QBIN >= 33) && (local.QBIN <= 62))
+                || ((local.QBIN >= 96) && (local.QBIN <= 126))
             ) {
                 // Got a valid local QBIN
                 this.QBIN = local.QBIN;
             }
         } else if (remote.QBIN == 'N') {
             this.QBIN = ' ';
-        } else if (((remote.QBIN >= 33) && (remote.QBIN <= 62)) ||
-            ((remote.QBIN >= 96) && (remote.QBIN <= 126))) {
+        } else if (((remote.QBIN >= 33) && (remote.QBIN <= 62))
+            || ((remote.QBIN >= 96) && (remote.QBIN <= 126))
+        ) {
             // Got a valid remote QBIN
             this.QBIN = remote.QBIN;
         }
@@ -436,8 +437,8 @@ class KermitInit {
 
         // REPT - if in agreement, use theirs, else use ' '
         if (local.REPT == remote.REPT) {
-            if (((local.REPT >= 33) && (local.REPT <= 62)) ||
-                ((local.REPT >= 96) && (local.REPT <= 126))
+            if (((local.REPT >= 33) && (local.REPT <= 62))
+                || ((local.REPT >= 96) && (local.REPT <= 126))
             ) {
                 // Got a valid local REPT
                 this.REPT = local.REPT;
@@ -446,9 +447,7 @@ class KermitInit {
         } else {
             this.REPT = ' ';
         }
-        if ((remote.REPT == this.QCTL) ||
-            (remote.REPT == this.QBIN)
-        ) {
+        if ((remote.REPT == this.QCTL) || (remote.REPT == this.QBIN)) {
             // Can't use QCTL or QBIN as REPT too
             this.REPT = ' ';
         }

@@ -74,8 +74,8 @@ public class SerialSessionLogger implements Runnable {
             for (;;) {
                 synchronized (session) {
                     SerialFileTransferSession.State state = session.getState();
-                    if ((state == SerialFileTransferSession.State.ABORT) ||
-                        (state == SerialFileTransferSession.State.END)
+                    if ((state == SerialFileTransferSession.State.ABORT) 
+                        || (state == SerialFileTransferSession.State.END)
                     ) {
                         // All done, bail out.
                         break;

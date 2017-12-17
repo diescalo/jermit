@@ -860,9 +860,7 @@ public class XmodemSession extends SerialFileTransferSession {
                         flavor = Flavor.VANILLA;
                     }
                 } else if (flavorType == 'C') {
-                    if ((flavor != Flavor.CRC) &&
-                        (flavor != Flavor.X_1K)
-                    ) {
+                    if ((flavor != Flavor.CRC) && (flavor != Flavor.X_1K)) {
                         // They have asked for CRC, but we were specified
                         // with something else.  If we were specified with
                         // vanilla, stay on that.  Otherwise, default to CRC.
@@ -970,8 +968,8 @@ public class XmodemSession extends SerialFileTransferSession {
                 output.write(data);
                 writeChecksum(data);
 
-                if ((flavor == Flavor.X_1K_G) &&
-                    (getState() == SerialFileTransferSession.State.TRANSFER)
+                if ((flavor == Flavor.X_1K_G)
+                    && (getState() == SerialFileTransferSession.State.TRANSFER)
                 ) {
                     // Assume that all is good, increment sequence for the
                     // next outgoing block.
