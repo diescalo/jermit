@@ -34,7 +34,7 @@ import java.io.IOException;
  * KermitProtocolException is thrown when talking to a Kermit implementation
  * that violates the published protocol specification.
  */
-public class KermitProtocolException extends IOException {
+class KermitProtocolException extends IOException {
 
     /**
      * Serializable version.

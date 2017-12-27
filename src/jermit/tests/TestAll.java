@@ -98,9 +98,12 @@ public class TestAll {
              * Downloads - clean line
              */
             (new Kermit1()).doTest();
+            (new Kermit2()).doTest();
+            (new Kermit3()).doTest();
 
         } catch (Throwable t) {
             t.printStackTrace();
+            System.exit(1);
         }
     }
 

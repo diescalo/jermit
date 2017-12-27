@@ -34,7 +34,11 @@ package jermit.protocol.kermit;
  *
  *   - The checksum type MUST be 1 (single byte).
  */
-public class NakPacket extends Packet {
+class NakPacket extends Packet {
+
+    // ------------------------------------------------------------------------
+    // Constructors -----------------------------------------------------------
+    // ------------------------------------------------------------------------
 
     /**
      * Public constructor.
@@ -43,9 +47,8 @@ public class NakPacket extends Packet {
      * @param seq sequence number of the packet this NAK is in response to
      */
     public NakPacket(final ParseState parseState, final byte seq) {
-        super(Type.NAK, (byte) 'N', "NAK Negative Acknowledge", (byte) 1);
+        super(Type.NAK, (byte) 'N', "NAK Negative Acknowledge", (byte) 1, seq);
         this.parseState = parseState;
-        this.seq = seq;
     }
 
     /**
@@ -56,6 +59,19 @@ public class NakPacket extends Packet {
     public NakPacket(final byte seq) {
         this(ParseState.OK, seq);
     }
+
+    /**
+     * Public constructor.
+     *
+     * @param seq sequence number of the packet this NAK is in response to
+     */
+    public NakPacket(final int seq) {
+        this(ParseState.OK, (byte) seq);
+    }
+
+    // ------------------------------------------------------------------------
+    // Packet -----------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
     /**
      * NAKs by definition have no data field.

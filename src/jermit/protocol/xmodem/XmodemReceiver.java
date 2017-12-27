@@ -38,6 +38,7 @@ import jermit.io.TimeoutInputStream;
 import jermit.protocol.FileInfo;
 import jermit.protocol.FileInfoModifier;
 import jermit.protocol.SerialFileTransferSession;
+import jermit.protocol.ymodem.YmodemSession;
 
 /**
  * XmodemReceiver downloads one file using the Xmodem protocol.
@@ -270,15 +271,21 @@ public class XmodemReceiver implements Runnable {
             // Update stats
             synchronized (session) {
                 setFile.setBlocksTransferred(file.getBlocksTransferred() + 1);
-                setFile.setBlocksTotal(file.getBlocksTotal() + 1);
+                if (!(session instanceof YmodemSession)) {
+                    // Ymodem supplied an accurate total check, don't update
+                    // these fields unless this is Xmodem.
+                    setFile.setBlocksTotal(file.getBlocksTotal() + 1);
+                    setFile.setBytesTotal(file.getBytesTotal() + data.length);
+                    session.setBytesTotal(session.getBytesTotal() +
+                        data.length);
+                }
+
                 setFile.setBytesTransferred(file.getBytesTransferred() +
                     data.length);
-                setFile.setBytesTotal(file.getBytesTotal() + data.length);
                 session.setBlocksTransferred(session.getBlocksTransferred() +
                     1);
                 session.setBytesTransferred(session.getBytesTransferred() +
                     data.length);
-                session.setBytesTotal(session.getBytesTotal() + data.length);
                 session.setLastBlockMillis(System.currentTimeMillis());
             }
 

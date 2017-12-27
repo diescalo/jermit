@@ -28,17 +28,22 @@
  */
 package jermit.protocol.kermit;
 
+import java.io.UnsupportedEncodingException;
+
 /**
- * AckPacket is used to acknowledge a correctly-received packet.  There are
- * special rules with these packets:
- *
- * - They cannot encode/decode the data field IF they are ack'ing a
- *   Send-Init.
- *
- * - The checksum type MUST be 1 (single byte) IF they are ack'ing a
- *   Send-Init.
+ * ErrorPacket is used to signal an unrecoverable error state that will
+ * result in terminating the Kermit session.
  */
-class AckPacket extends Packet {
+class ErrorPacket extends Packet {
+
+    // ------------------------------------------------------------------------
+    // Variables --------------------------------------------------------------
+    // ------------------------------------------------------------------------
+
+    /**
+     * The error message string.
+     */
+    public String errorMessage = "";
 
     // ------------------------------------------------------------------------
     // Constructors -----------------------------------------------------------
@@ -48,36 +53,27 @@ class AckPacket extends Packet {
      * Public constructor.
      *
      * @param checkType checksum type
+     * @param errorMessage error message to send to remote side
      * @param seq sequence number of the packet
      */
-    public AckPacket(final byte checkType, final byte seq) {
-        super(Type.ACK, (byte) 'Y', "ACK Acknowledge", checkType, seq);
+    public ErrorPacket(final byte checkType, final String errorMessage,
+        final byte seq) {
+
+        super(Type.ERROR, (byte) 'E', "Error", checkType, seq);
+        this.errorMessage = errorMessage;
     }
 
     /**
      * Public constructor.
      *
      * @param checkType checksum type
+     * @param errorMessage error message to send to remote side
      * @param seq sequence number of the packet
      */
-    public AckPacket(final byte checkType, final int seq) {
-        this(checkType, (byte) seq);
-    }
+    public ErrorPacket(final byte checkType, final String errorMessage,
+        final int seq) {
 
-    /**
-     * Build an Ack out of a SendInitPacket instance.
-     *
-     * @param packet SendInitPacket
-     */
-    public AckPacket(final SendInitPacket packet) {
-        this(packet.checkType, 0);
-
-        // Grab a copy of their data
-        this.data = new byte[packet.data.length];
-        System.arraycopy(packet.data, 0, this.data, 0, this.data.length);
-
-        // Don't encode it when serializing
-        dontEncodeData = true;
+        this(checkType, errorMessage, (byte) seq);
     }
 
     // ------------------------------------------------------------------------
@@ -92,8 +88,11 @@ class AckPacket extends Packet {
      */
     @Override
     protected void readFromData() throws KermitProtocolException {
-        // There are no object fields for this.  Higher-level code will look
-        // at data[] directly.
+        try {
+            errorMessage = new String(data, "UTF-8");
+        } catch (UnsupportedEncodingException e) {
+            e.printStackTrace();
+        }
     }
 
     /**
@@ -101,8 +100,11 @@ class AckPacket extends Packet {
      */
     @Override
     protected void writeToData() {
-        // There are no object fields for this.  Higher-level code will look
-        // at data[] directly.
+        try {
+            data = errorMessage.getBytes("UTF-8");
+        } catch (UnsupportedEncodingException e) {
+            e.printStackTrace();
+        }
     }
 
 }

@@ -1,3 +1,97 @@
+December 27, 2017
+
+Kermit receive is working now.  It is a bit glitchy, but it is there.
+My first bit of Java code to speak Kermit, ever! :-)
+
+This is really a nice day overall.  I have been looking forward to a
+modern Kermit implementation for a number of years, and now it is
+here.  Currently clocking about 5400 LOC, I think it will only be
+about 8000 LOC in total to hit full duplex sliding windows, IKS, and
+bidirectional support.  Hopefully all of that will be small enough to
+be accessible for any who want to transliterate it to
+JS/Go/Python/etc.
+
+Send will be rather straightforward now, but I will have to get to
+that this weekend sometime.
+
+December 23, 2017
+
+Kermit can read and write packets now, and can start to negotiate for
+downloading files.
+
+December 20, 2017
+
+Stubs for Kermit continue along.  The encode side compiles, the decode
+side is getting started.  I have also decided that the server will
+support UDP (which Kermit is perfect for) and the SSL port will be
+1650 (one plus kermit port).
+
+I've been remembering the Kermit designs I had with the other
+codebase, and one thing I wanted was true bidirectionality.  The
+solution I had put together before would have broken the protocol, but
+I am wondering if I can get there without real changes.  The IKS
+breaks stuff, as the receiver and sender can both send ACKs
+(presumably NAKs too) and they can also send non-ACKs (e.g. R, K, C
+packets).  But thanks to a more careful reading of the doc:
+
+    6.2. Terminator
+
+    Any line terminator that is required by the system may be appended
+    to the packet; this is carriage return (ASCII 15) by default. Line
+    terminators are not considered part of the packet, and are not
+    included in the count or check- sum.  Terminators are not
+    necessary to the protocol, and are invisible to it, as are any
+    characters that may appear between packets.
+
+This means that I can put a channel number ahead of MARK and use that
+to indicate the direction of transfer.  OR maybe better yet: each
+channel has an independent MARK byte.  YES, this is the way forward: a
+SelectableInputStream that wraps N InputStreams, looking for different
+MARK bytes and switching the read() based on that.  This would make
+bidirectional Kermit rather trivial: use different MARKs, a single
+OutputStream smushing it all together, and a SelectableInputStream
+that breaks up the incoming into the N channels.  Receiver and Sender
+have no code changes, all the work setting it up happens in the UI
+wrapper.  There it is: a backwards-compatible bidirectional Kermit!
+
+So the remaining trick is figuring out how to get two Kermit nodes to
+agree to use different MARKs when setting up the connection, and
+before all of the other Kermit protocol happens.  I'm thinking a new
+packet type can do this.  The Kermit web site has a file called
+"packet-type-registry.txt", last updated in 1998, that has a lot of
+defined packet and pseudopacket types.  One that remains free is 'b',
+so I could create a new "bidirectional negotiation" packet that would
+be the first packet sent by each Kermit side (before Send-Init or
+ServInit).  'b' packets are intended to answer the following
+questions:
+
+  * Does my side request bidirectional?  If yes, try to negotiate
+    bidir, and if successful do that; if unsuccessful either error out
+    or proceed to do sends followed by receives or vice versa.  If
+    bidir is not needed, say so.
+
+  * Do both sides request bidir?  If yes, agree on which node will be
+    called A and which will be called B, and then select the
+    handedness of the transfer.  (Handedness: right-handed means that
+    node A will use ^A as MARK for its SENDs to node B.  left-handed
+    means node A will use ^B as MARK for its SENDs to node B.)
+
+  * If neither side requests bidir, fallback to normal Kermit.
+
+One simple method to determine handedness could be: each side creates
+a random number, sends it to the other in the 'b' packet, and the
+lowest number (unsigned) is node A.  And then we standardize on
+right-handed transfers, and we are basically done.  This has the nice
+effect of mirroring SendInit: one packet from each side and it is
+done.  The major difference is that there is no ACK for this packet,
+so failure to receive one before a ServInit or SendInit would lead to
+downgrade.  Final ingredient: send this on the B channel, so that
+non-bidir Kermits see nothing.
+
+The rest of the 'b' packet could be used for additional information
+around the channel, or for providing a true versioning scheme for
+other protocol extensions.
+
 December 17, 2017
 
 I have some time before the end of the year to give this project a

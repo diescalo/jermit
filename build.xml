@@ -87,6 +87,8 @@
     <jar destfile="${jar.dir}/${ant.project.name}.jar"
          basedir="${classes.dir}">
 
+      <exclude name="**/tests/**"/>
+
       <fileset dir="${resources.dir}"/>
 
       <!-- Include source by default. -->

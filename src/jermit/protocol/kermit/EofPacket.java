@@ -29,16 +29,18 @@
 package jermit.protocol.kermit;
 
 /**
- * AckPacket is used to acknowledge a correctly-received packet.  There are
- * special rules with these packets:
- *
- * - They cannot encode/decode the data field IF they are ack'ing a
- *   Send-Init.
- *
- * - The checksum type MUST be 1 (single byte) IF they are ack'ing a
- *   Send-Init.
+ * EofPacket is used to represent the end-of-file.
  */
-class AckPacket extends Packet {
+class EofPacket extends Packet {
+
+    // ------------------------------------------------------------------------
+    // Variables --------------------------------------------------------------
+    // ------------------------------------------------------------------------
+
+    /**
+     * If true, the sender wants to interrupt/skip this file.
+     */
+    public boolean skipFile = false;
 
     // ------------------------------------------------------------------------
     // Constructors -----------------------------------------------------------
@@ -50,34 +52,8 @@ class AckPacket extends Packet {
      * @param checkType checksum type
      * @param seq sequence number of the packet
      */
-    public AckPacket(final byte checkType, final byte seq) {
-        super(Type.ACK, (byte) 'Y', "ACK Acknowledge", checkType, seq);
-    }
-
-    /**
-     * Public constructor.
-     *
-     * @param checkType checksum type
-     * @param seq sequence number of the packet
-     */
-    public AckPacket(final byte checkType, final int seq) {
-        this(checkType, (byte) seq);
-    }
-
-    /**
-     * Build an Ack out of a SendInitPacket instance.
-     *
-     * @param packet SendInitPacket
-     */
-    public AckPacket(final SendInitPacket packet) {
-        this(packet.checkType, 0);
-
-        // Grab a copy of their data
-        this.data = new byte[packet.data.length];
-        System.arraycopy(packet.data, 0, this.data, 0, this.data.length);
-
-        // Don't encode it when serializing
-        dontEncodeData = true;
+    public EofPacket(final byte checkType, final byte seq) {
+        super(Type.EOF, (byte) 'Z', "EOF End Of File", checkType, seq);
     }
 
     // ------------------------------------------------------------------------
@@ -92,8 +68,11 @@ class AckPacket extends Packet {
      */
     @Override
     protected void readFromData() throws KermitProtocolException {
-        // There are no object fields for this.  Higher-level code will look
-        // at data[] directly.
+        if ((data.length > 0) && (data[0] == 'D')) {
+            skipFile = true;
+        } else {
+            skipFile = false;
+        }
     }
 
     /**
@@ -101,8 +80,12 @@ class AckPacket extends Packet {
      */
     @Override
     protected void writeToData() {
-        // There are no object fields for this.  Higher-level code will look
-        // at data[] directly.
+        if (skipFile == true) {
+            data = new byte[1];
+            data[0] = 'D';
+        } else {
+            data = new byte[0];
+        }
     }
 
 }

@@ -38,6 +38,10 @@ package jermit.protocol.kermit;
  */
 class SendInitPacket extends Packet {
 
+    // ------------------------------------------------------------------------
+    // Variables --------------------------------------------------------------
+    // ------------------------------------------------------------------------
+
     // If true, enable some debugging output.
     private static final boolean DEBUG = false;
 
@@ -46,11 +50,15 @@ class SendInitPacket extends Packet {
      */
     private KermitInit init = new KermitInit();
 
+    // ------------------------------------------------------------------------
+    // Constructors -----------------------------------------------------------
+    // ------------------------------------------------------------------------
+
     /**
      * Public constructor.
      */
     public SendInitPacket() {
-        super(Type.SINIT, (byte) 'S', "Send-Init", (byte) 1);
+        super(Type.SINIT, (byte) 'S', "Send-Init", (byte) 1, (byte) 0);
         init = new KermitInit();
         dontEncodeData = true;
     }
@@ -86,15 +94,9 @@ class SendInitPacket extends Packet {
         readFromData();
     }
 
-    /**
-     * Sets my variables to a KermitInit's values.
-     *
-     * @param init KermitInit instance
-     */
-    public void setTo(final KermitInit init) {
-        this.init.setTo(init);
-        writeToData();
-    }
+    // ------------------------------------------------------------------------
+    // Packet -----------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
     /**
      * Decode a SendInit data field to the KermitInit object.
@@ -111,7 +113,7 @@ class SendInitPacket extends Packet {
 
         if ((data.length >= 1) && (data[0] != ' ')) {
             // Byte 1: MAXL
-            init.MAXL = Encoder.unChar(data[0]);
+            init.MAXL = unChar(data[0]);
             if (DEBUG) {
                 System.err.printf("    MAXL: '%c' %d\n", (char) (data[0]),
                     init.MAXL);
@@ -125,7 +127,7 @@ class SendInitPacket extends Packet {
 
         if ((data.length >= 2) && (data[1] != ' ')) {
             // Byte 2: TIME
-            init.TIME = Encoder.unChar(data[1]);
+            init.TIME = unChar(data[1]);
             if (DEBUG) {
                 System.err.printf("    TIME: '%c' %d\n", (char) (data[1]),
                     init.TIME);
@@ -134,7 +136,7 @@ class SendInitPacket extends Packet {
 
         if ((data.length >= 3) && (data[2] != ' ')) {
             // Byte 3: NPAD
-            init.NPAD = Encoder.unChar(data[2]);
+            init.NPAD = unChar(data[2]);
             if (DEBUG) {
                 System.err.printf("    NPAD: '%c' %d\n", (char) (data[2]),
                     init.NPAD);
@@ -143,7 +145,7 @@ class SendInitPacket extends Packet {
 
         if ((data.length >= 4) && (data[3] != ' ')) {
             // Byte 4: PADC - ctl
-            init.PADC = Encoder.ctl(data[3]);
+            init.PADC = ctl(data[3]);
             if (DEBUG) {
                 System.err.printf("    PADC: '%c' %02x\n", (char) (data[3]),
                     init.PADC);
@@ -152,7 +154,7 @@ class SendInitPacket extends Packet {
 
         if ((data.length >= 5) && (data[4] != ' ')) {
             // Byte 5: EOL
-            init.EOL = Encoder.unChar(data[4]);
+            init.EOL = unChar(data[4]);
             if (DEBUG) {
                 System.err.printf("    EOL:  '%c' %02x\n", (char) (data[4]),
                     init.EOL);
@@ -198,7 +200,7 @@ class SendInitPacket extends Packet {
         if (data.length >= 10) {
             while (data.length > capasI) {
                 // Byte 10-?: CAPAS
-                byte capas = Encoder.unChar(data[capasI]);
+                byte capas = unChar(data[capasI]);
                 if (DEBUG) {
                     System.err.printf("    CAPAS %d: '%c' %02x\n", (capasI - 9),
                         (char) (data[capasI]), capas);
@@ -253,7 +255,7 @@ class SendInitPacket extends Packet {
 
             if (data.length >= capasI + 1) {
                 // WINDO
-                init.WINDO = Encoder.unChar(data[capasI]);
+                init.WINDO = unChar(data[capasI]);
                 if (DEBUG) {
                     System.err.printf("    WINDO:  '%c' %02x %d\n",
                         (char) (data[capasI]), init.WINDO, init.WINDO);
@@ -263,7 +265,7 @@ class SendInitPacket extends Packet {
 
             if (data.length >= capasI + 1) {
                 // MAXLX1
-                init.MAXLX1 = Encoder.unChar(data[capasI]);
+                init.MAXLX1 = unChar(data[capasI]);
                 if (DEBUG) {
                     System.err.printf("    MAXLX1: '%c' %02x %d\n",
                         (char) (data[capasI]), init.MAXLX1, init.MAXLX1);
@@ -273,7 +275,7 @@ class SendInitPacket extends Packet {
 
             if (data.length >= capasI + 1) {
                 // MAXLX2
-                init.MAXLX2 = Encoder.unChar(data[capasI]);
+                init.MAXLX2 = unChar(data[capasI]);
                 if (DEBUG) {
                     System.err.printf("    MAXLX2: '%c' %02x %d\n",
                         (char) (data[capasI]), init.MAXLX2, init.MAXLX2);
@@ -319,7 +321,7 @@ class SendInitPacket extends Packet {
 
             if (data.length >= capasI + 1) {
                 // WHATAMI
-                byte whatami = Encoder.unChar(data[capasI]);
+                byte whatami = unChar(data[capasI]);
                 if (DEBUG) {
                     System.err.printf("    WHATAMI: '%c' %02x %d\n",
                         (char) (data[capasI]), data[capasI], data[capasI]);
@@ -338,29 +340,29 @@ class SendInitPacket extends Packet {
 
             if (data.length >= capasI + 1) {
                 // System type - Length
-                byte id_length = Encoder.unChar(data[capasI]);
+                byte idLength = unChar(data[capasI]);
                 if (DEBUG) {
                     System.err.printf("    System ID length: '%c' %02x %d\n",
                         (char) (data[capasI]), data[capasI], data[capasI]);
                 }
 
-                if (data.length >= capasI + 1 + id_length) {
+                if (data.length >= capasI + 1 + idLength) {
                     StringBuilder systemID = new StringBuilder("");
-                    for (int j = 0; j < id_length; j++) {
-                        systemID.append(data[capasI + 1 + j]);
+                    for (int j = 0; j < idLength; j++) {
+                        systemID.append((char) (data[capasI + 1 + j]));
                     }
                     if (DEBUG) {
                         System.err.printf("        System ID: \"%s\"\n",
                             systemID.toString());
                     }
-                    capasI += id_length;
+                    capasI += idLength;
                 }
                 capasI++;
             }
 
             if (data.length >= capasI + 1) {
                 // WHATAMI2
-                byte whatami2 = Encoder.unChar(data[capasI]);
+                byte whatami2 = unChar(data[capasI]);
                 if (DEBUG) {
                     System.err.printf("    WHATAMI2: '%c' %02x %d\n",
                         (char) (data[capasI]), data[capasI], data[capasI]);
@@ -392,26 +394,40 @@ class SendInitPacket extends Packet {
     @Override
     protected void writeToData() {
         data = new byte[18];
-        data[0] = Encoder.toChar(init.MAXL);
-        data[1] = Encoder.toChar(init.TIME);
-        data[2] = Encoder.toChar(init.NPAD);
-        data[3] = Encoder.ctl(init.PADC);
-        data[4] = Encoder.toChar(init.EOL);
+        data[0] = toChar(init.MAXL);
+        data[1] = toChar(init.TIME);
+        data[2] = toChar(init.NPAD);
+        data[3] = ctl(init.PADC);
+        data[4] = toChar(init.EOL);
         data[5] = init.QCTL;
         data[6] = init.QBIN;
         data[7] = init.CHKT;
         data[8] = init.REPT;
-        data[9] = Encoder.toChar(init.CAPAS);
+        data[9] = toChar(init.CAPAS);
         // Long packets
-        data[10] = Encoder.toChar(init.WINDO);
-        data[11] = Encoder.toChar(init.MAXLX1);
-        data[12] = Encoder.toChar(init.MAXLX2);
+        data[10] = toChar(init.WINDO);
+        data[11] = toChar(init.MAXLX1);
+        data[12] = toChar(init.MAXLX2);
         // Checkpointing - never implemented in the protocol
         data[13] = '0';
         data[14] = '_';
         data[15] = '_';
         data[16] = '_';
-        data[17] = Encoder.toChar(init.WHATAMI);
+        data[17] = toChar(init.WHATAMI);
+    }
+
+    // ------------------------------------------------------------------------
+    // SendInitPacket ---------------------------------------------------------
+    // ------------------------------------------------------------------------
+
+    /**
+     * Sets my variables to a KermitInit's values.
+     *
+     * @param init KermitInit instance
+     */
+    public void setTo(final KermitInit init) {
+        this.init.setTo(init);
+        writeToData();
     }
 
 }

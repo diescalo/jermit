@@ -34,7 +34,11 @@ package jermit.protocol.kermit;
  * window sizes, etc.  Several different layers of the protocol stack need to
  * refer to this.  Note package private access.
  */
-class KermitInit {
+final class KermitInit {
+
+    // ------------------------------------------------------------------------
+    // Variables --------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
     // If true, enable some debugging output.
     private static final boolean DEBUG = false;
@@ -186,6 +190,35 @@ class KermitInit {
      */
     public byte checkType = 1;
 
+    // ------------------------------------------------------------------------
+    // Constructors -----------------------------------------------------------
+    // ------------------------------------------------------------------------
+
+    /**
+     * Public constructor sets Kermit protocol defaults.
+     *
+     * @param paranoid if true, use the robust but very slow Kermit protocol
+     * defaults
+     */
+    public KermitInit(final boolean paranoid) {
+        if (paranoid) {
+            kermitDefaults();
+        } else {
+            reset();
+        }
+    }
+
+    /**
+     * Public constructor sets Kermit protocol defaults.
+     */
+    public KermitInit() {
+        this(false);
+    }
+
+    // ------------------------------------------------------------------------
+    // KermitInit -------------------------------------------------------------
+    // ------------------------------------------------------------------------
+
     /**
      * Set to the official (rubust) Kermit protocol defaults.
      */
@@ -264,27 +297,6 @@ class KermitInit {
             streaming = false;
             WHATAMI = 0x00;             // No streaming
         }
-    }
-
-    /**
-     * Public constructor sets Kermit protocol defaults.
-     *
-     * @param paranoid if true, use the robust but very slow Kermit protocol
-     * defaults
-     */
-    public KermitInit(final boolean paranoid) {
-        if (paranoid) {
-            kermitDefaults();
-        } else {
-            reset();
-        }
-    }
-
-    /**
-     * Public constructor sets Kermit protocol defaults.
-     */
-    public KermitInit() {
-        this(false);
     }
 
     /**

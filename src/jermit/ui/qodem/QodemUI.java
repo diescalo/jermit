@@ -28,11 +28,14 @@
  */
 package jermit.ui.qodem;
 
+import java.io.File;
 import java.util.List;
 import java.util.LinkedList;
 
 import jermit.protocol.FileInfo;
 import jermit.protocol.SerialFileTransferSession;
+import jermit.protocol.kermit.KermitReceiver;
+// import jermit.protocol.kermit.KermitSender;
 import jermit.protocol.xmodem.XmodemReceiver;
 import jermit.protocol.xmodem.XmodemSender;
 import jermit.protocol.ymodem.YmodemReceiver;
@@ -68,6 +71,8 @@ public class QodemUI implements Runnable {
     XmodemReceiver xmodemReceiver;
     YmodemSender ymodemSender;
     YmodemReceiver ymodemReceiver;
+    KermitReceiver kermitReceiver;
+    // KermitSender kermitSender;
 
     /**
      * Input events are processed by this Terminal.
@@ -100,16 +105,6 @@ public class QodemUI implements Runnable {
      * Actual mouse coordinate Y.
      */
     private int mouseY;
-
-    /**
-     * Old version of mouse coordinate X.
-     */
-    private int oldMouseX;
-
-    /**
-     * Old version mouse coordinate Y.
-     */
-    private int oldMouseY;
 
     /**
      * If true, bail out of run().
@@ -179,7 +174,7 @@ public class QodemUI implements Runnable {
 
                 synchronized (session) {
                     SerialFileTransferSession.State state = session.getState();
-                    if ((state == SerialFileTransferSession.State.ABORT) 
+                    if ((state == SerialFileTransferSession.State.ABORT)
                         || (state == SerialFileTransferSession.State.END)
                     ) {
                         if (waitStart == 0) {
@@ -233,8 +228,6 @@ public class QodemUI implements Runnable {
                 synchronized (screen) {
                     if ((mouseX != mouse.getX()) || (mouseY != mouse.getY())) {
                         mouseHasMoved = true;
-                        oldMouseX = mouseX;
-                        oldMouseY = mouseY;
                         mouseX = mouse.getX();
                         mouseY = mouse.getY();
                     }
@@ -242,15 +235,15 @@ public class QodemUI implements Runnable {
             }
 
             if (event instanceof TKeypressEvent) {
-                if ((session.getState() == SerialFileTransferSession.State.END) 
+                if ((session.getState() == SerialFileTransferSession.State.END)
                     || (session.getState() == SerialFileTransferSession.State.ABORT)
                 ) {
                     done = true;
                 }
 
                 TKeypressEvent keypress = (TKeypressEvent) event;
-                if (keypress.equals(kbCtrlC) 
-                    || keypress.equals(kbEsc) 
+                if (keypress.equals(kbCtrlC)
+                    || keypress.equals(kbEsc)
                     // Backtick cancels too.
                     || ((keypress.getKey().isFnKey() == false)
                         && (keypress.getKey().getChar() == '`'))
@@ -267,6 +260,14 @@ public class QodemUI implements Runnable {
                     if (ymodemSender != null) {
                         ymodemSender.cancelTransfer(true);
                     }
+                    if (kermitReceiver != null) {
+                        kermitReceiver.cancelTransfer(true);
+                    }
+                    /*
+                    if (kermitSender != null) {
+                        kermitSender.cancelTransfer(true);
+                    }
+                    */
                 }
             }
         }
@@ -351,7 +352,7 @@ public class QodemUI implements Runnable {
         screen.putStringXY(2, 3, "File ", label);
         String filename = "";
         if (file != null) {
-            filename = file.getLocalName();
+            filename = (new File(file.getLocalName())).getName();
         }
         screen.putStringXY(7, 3, filename, text);
         screen.putStringXY(27, 1, "Protocol ", label);
@@ -375,7 +376,7 @@ public class QodemUI implements Runnable {
          * Time fields
          */
         if (file != null) {
-            if ((session.getState() == SerialFileTransferSession.State.END) 
+            if ((session.getState() == SerialFileTransferSession.State.END)
                 || (session.getState() == SerialFileTransferSession.State.ABORT)
             ) {
                 transferTime = file.getEndTime() - file.getStartTime();
@@ -394,7 +395,7 @@ public class QodemUI implements Runnable {
             timeElapsedString = String.format("%02d:%02d:%02d",
                 hours, minutes, seconds);
 
-            if ((session.getState() == SerialFileTransferSession.State.END) 
+            if ((session.getState() == SerialFileTransferSession.State.END)
                 || (session.getState() == SerialFileTransferSession.State.ABORT)
             ) {
                 remainingTime = 0;

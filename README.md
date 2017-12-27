@@ -2,13 +2,25 @@ Jermit
 ======
 
 Jermit is a Java implementation of several serial file transfer
-protocols.
+protocols.  General summary:
 
+  * Xmodem and Ymodem are fully supported.  Flavors include vanilla,
+    relaxed, CRC-16, 1K, 1K/G, and G.
 
-WARNING!!  THIS PROJECT IS JUST BEGINNING.  NOT MUCH IS WORKING YET!!
-Right now the only thing working is Xmodem and Ymodem uploads and
-downloads between System.in/out and a local file, using a Swing frame
-that resembles the Qodem file transfer dialog.
+  * Kermit is in progress.  Receive works, send is coming soon.
+
+  * Zmodem is estimated to be in around 3Q 2018.
+
+  * Uploads and downloads occur between System.in/out and a local
+    file.
+
+  * Two interfaces are provided so far:
+
+    1. Command-line utilities that can be drop-in replacements for
+       rx/sx/rb/sb.
+
+    2. A new 'jermit' command that uses a Swing frame that resembles
+       the Qodem file transfer dialog.
 
 
 Why?
@@ -27,6 +39,8 @@ and Kermit -- are still useful today:
 
   * Transferring files across noisy and unreliable links, for example
     3-wire RS-232 to an embedded system.
+
+  * Transferring files over UDP to avoid TCP connection overhead.
 
 Programmers seeking to use the serial file transfer protocols in their
 applications have very few good choices that are Open Source or Free
@@ -77,5 +91,17 @@ for the full license text.
 Usage
 -----
 
-The library is currently under initial development, usage patterns are
-still being worked on.
+This library is still in development.  The eventual intent is to
+invoke Jermit code in three general ways:
+
+  * Create a Receiver or Sender class, and call its run() method on a
+    new Thread.  See the jermit.tests.{protocol} classes for examples.
+
+  * Use one of the command-line interfaces.  A GUI transfer window is
+    already available, as are drop-in replacements for the (l)rzsz
+    utilities.  A replacement for ckermit with readline-like support
+    is also in plan.
+
+  * It is plan to provide a heirarchy of SerialURLConnection's
+    (XmodemURLConnection, KermitURLConnection, etc.) that can be
+    treated like a HttpURLConnetion.

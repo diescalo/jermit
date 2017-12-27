@@ -38,12 +38,12 @@ import jermit.tests.TestFailedException;
 /**
  * Test a basic Kermit file transfer.
  */
-public class Kermit1 extends SerialTransferTest implements Runnable {
+public class Kermit2 extends SerialTransferTest implements Runnable {
 
     /**
      * Public constructor.
      */
-    public Kermit1() {
+    public Kermit2() {
     }
 
     /**
@@ -51,18 +51,18 @@ public class Kermit1 extends SerialTransferTest implements Runnable {
      */
     @Override
     public void doTest() throws IOException, TestFailedException {
-        System.out.printf("Kermit1: basic ASCII file download\n");
+        System.out.printf("Kermit2: one binary file download\n");
 
         // Process:
         //
-        //   1. Extract jermit/tests/data/ALICE26A_NO_EOT.TXT to
+        //   1. Extract jermit/tests/data/lady-of-shalott.jpg to
         //      a temp file.
-        //   2. Spawn 'kermit -V -s /path/to/ALICE26A_NO_EOT.TXT'
-        //   3. Spin up KermitReceiver to download to a temp file.
+        //   2. Spawn 'kermit -V -s /path/to/lady-of-shalott.jpg'
+        //   3. Spin up KermitReceiver to download to a temp directory.
         //   4. Read both files and compare contents.
 
-        File source = File.createTempFile("send-kermitttttt", ".txt");
-        saveResourceToFile("jermit/tests/data/ALICE26A_NO_EOT.TXT", source);
+        File source = File.createTempFile("send-kerrrrrrmit", ".jpg");
+        saveResourceToFile("jermit/tests/data/lady-of-shalott.jpg", source);
         source.deleteOnExit();
 
         // Create a directory
@@ -110,7 +110,7 @@ public class Kermit1 extends SerialTransferTest implements Runnable {
      */
     public static void main(final String [] args) {
         try {
-            Kermit1 test = new Kermit1();
+            Kermit2 test = new Kermit2();
             test.doTest();
         } catch (Throwable t) {
             t.printStackTrace();

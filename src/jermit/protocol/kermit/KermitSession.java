@@ -29,16 +29,15 @@
 package jermit.protocol.kermit;
 
 import java.io.EOFException;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.io.RandomAccessFile;
-import java.util.LinkedList;
 import java.util.List;
 
 import jermit.io.EOFInputStream;
+import jermit.io.LocalFile;
 import jermit.io.LocalFileInterface;
-import jermit.io.ReadTimeoutException;
 import jermit.io.TimeoutInputStream;
 import jermit.protocol.FileInfo;
 import jermit.protocol.FileInfoModifier;
@@ -59,9 +58,9 @@ public class KermitSession extends SerialFileTransferSession {
     private static final boolean DEBUG = false;
 
     /**
-     * The current sequence number.
+     * The current sequence number.  Note package private access.
      */
-    private int sequenceNumber = 1;
+    int sequenceNumber = 0;
 
     /**
      * The number of consecutive errors.  After 10 errors, the transfer is
@@ -91,9 +90,19 @@ public class KermitSession extends SerialFileTransferSession {
     private boolean overwrite = false;
 
     /**
-     * The current state of the transfer.
+     * The current state of the transfer.  Note package private access.
      */
-    private KermitState kermitState = KermitState.INIT;
+    KermitState kermitState = KermitState.INIT;
+
+    /**
+     * The current transfer parameters.  Note package private access.
+     */
+    TransferParameters transferParameters = new TransferParameters();
+
+    /**
+     * The size of the last block transferred.  Note package private access.
+     */
+    int lastBlockSize = 128;
 
     // ------------------------------------------------------------------------
     // Constructors -----------------------------------------------------------
@@ -168,8 +177,7 @@ public class KermitSession extends SerialFileTransferSession {
      */
     @Override
     public int getBlockSize() {
-        // TODO
-        return 128;
+        return lastBlockSize;
     }
 
     /**
@@ -284,24 +292,6 @@ public class KermitSession extends SerialFileTransferSession {
     }
 
     /**
-     * Get the Kermit protocol transfer state.
-     *
-     * @return the state
-     */
-    public KermitState getKermitState() {
-        return kermitState;
-    }
-
-    /**
-     * Set the Kermit protocol transfer state.
-     *
-     * @param kermitState the new state
-     */
-    public void setKermitState(final KermitState kermitState) {
-        this.kermitState = kermitState;
-    }
-
-    /**
      * Set the current status message.
      *
      * @param message the status message
@@ -311,84 +301,78 @@ public class KermitSession extends SerialFileTransferSession {
     }
 
     /**
-     * Set the directory that contains the file(s) of this transfer.
-     *
-     * @param transferDirectory the directory that contains the file(s) of
-     * this transfer
-     */
-    private void setTransferDirectory(final String transferDirectory) {
-        this.transferDirectory = transferDirectory;
-    }
-
-    /**
-     * Set the number of bytes transferred in this session.
+     * Set the number of bytes transferred in this session.  Note package
+     * private access.
      *
      * @param bytesTransferred the number of bytes transferred in this
      * session
      */
-    private void setBytesTransferred(final long bytesTransferred) {
+    void setBytesTransferred(final long bytesTransferred) {
         this.bytesTransferred = bytesTransferred;
     }
 
     /**
-     * Set the number of bytes in total to transfer in this session.
+     * Set the number of bytes in total to transfer in this session.  Note
+     * package private access.
      *
      * @param bytesTotal the number of bytes in total to transfer in this
      * session
      */
-    private void setBytesTotal(final long bytesTotal) {
+    void setBytesTotal(final long bytesTotal) {
         this.bytesTotal = bytesTotal;
     }
 
     /**
-     * Set the number of blocks transferred in this session.
+     * Set the number of blocks transferred in this session.  Note package
+     * private access.
      *
      * @param blocksTransferred the number of blocks transferred in this
      * session
      */
-    private void setBlocksTransferred(final long blocksTransferred) {
+    void setBlocksTransferred(final long blocksTransferred) {
         this.blocksTransferred = blocksTransferred;
     }
 
     /**
-     * Set the time at which last block was sent or received.
+     * Set the time at which last block was sent or received.  Note package
+     * private access.
      *
      * @param lastBlockMillis the time at which last block was sent or
      * received
      */
-    private void setLastBlockMillis(final long lastBlockMillis) {
+    void setLastBlockMillis(final long lastBlockMillis) {
         this.lastBlockMillis = lastBlockMillis;
     }
 
     /**
      * Set the time at which this session started transferring its first
-     * file.
+     * file.  Note package private access.
      *
      * @param startTime the time at which this session started transferring
      * its first file
      */
-    private void setStartTime(final long startTime) {
+    void setStartTime(final long startTime) {
         this.startTime = startTime;
     }
 
     /**
      * Set the time at which this session completed transferring its last
-     * file.
+     * file.  Note package private access.
      *
      * @param endTime the time at which this session completed transferring
      * its last file
      */
-    protected void setEndTime(final long endTime) {
+    void setEndTime(final long endTime) {
         this.endTime = endTime;
     }
 
     /**
      * Count a timeout, cancelling the transfer if there are too many
-     * consecutive errors.
+     * consecutive errors.  Note package private access.
      *
      * @throws IOException if a java.io operation throws
      */
-    private synchronized void timeout() throws IOException {
+    synchronized void timeout() throws IOException {
 
         if (DEBUG) {
             System.err.println("TIMEOUT");
@@ -424,13 +408,111 @@ public class KermitSession extends SerialFileTransferSession {
     }
 
     /**
+     * Receive and decode a packet from the wire.
+     *
+     * @return packet the packet received
+     * @throws IOException if a java.io operation throws
+     */
+    protected Packet getPacket() throws EOFException, IOException {
+        return Packet.decode(input, transferParameters, kermitState);
+    }
+
+    /**
      * Encode and send a packet onto the wire.
      *
      * @param packet the packet to send
      * @throws IOException if a java.io operation throws
      */
     protected void sendPacket(final Packet packet) throws IOException {
-        // TODO
+        byte [] packetBytes = packet.encode(transferParameters);
+        output.write(packetBytes);
+        for (int i = 0; i < transferParameters.remote.NPAD; i++) {
+            output.write(transferParameters.remote.PADC);
+        }
+        output.flush();
+    }
+
+    /**
+     * Construct and send an Ack packet onto the wire.
+     *
+     * @param seq sequence number of the packet
+     * @throws IOException if a java.io operation throws
+     */
+    protected void sendAck(final byte seq) throws IOException {
+        sendPacket(new AckPacket(transferParameters.active.checkType, seq));
+    }
+
+    /**
+     * Construct and send an Ack packet onto the wire.
+     *
+     * @param seq sequence number of the packet
+     * @throws IOException if a java.io operation throws
+     */
+    protected void sendAck(final int seq) throws IOException {
+        sendPacket(new AckPacket(transferParameters.active.checkType, seq));
+    }
+
+    /**
+     * Open a file for download, checking for existence and overwriting if
+     * necessary.
+     *
+     * @param filename the name of the file to open
+     * @param fileModTime file modification time from the File-Attributes
+     * packet in millis, or -1 if unknown
+     * @param fileSize file size from the File-Attributes packet, or -1 if
+     * unknown
+     * @return true if the transfer is ready to download another file
+     */
+    protected boolean openDownloadFile(final String filename,
+        final long fileModTime, final long fileSize) {
+
+        // Make sure we cannot overwrite this file.
+        assert (transferDirectory != null);
+        assert (filename != null);
+        File checkExists = new File(transferDirectory, filename);
+        if ((checkExists.exists() == true) && (overwrite == false)) {
+            abort(filename + " already exists, will not overwrite");
+            return false;
+        }
+
+        // TODO: allow callers to provide a class name for the
+        // LocalFileInterface implementation and use reflection to get it.
+        LocalFileInterface localFile = new LocalFile(checkExists);
+        if (DEBUG) {
+            System.err.println("Transfer directory: " + transferDirectory);
+            System.err.println("Download to: " + localFile.getLocalName());
+        }
+
+        synchronized (this) {
+            // Add the file to the files list and make it the current file.
+            FileInfo file = new FileInfo(localFile);
+            files.add(file);
+            currentFile = files.size() - 1;
+
+            // Now perform the stats update.  Since we have the file size we
+            // can do it all though.
+
+            // Set state BEFORE getCurrentFileModifier(), otherwise
+            // getCurrentFile() might return null.
+            setState(SerialFileTransferSession.State.TRANSFER);
+            FileInfoModifier setFile = getCurrentFileInfoModifier();
+
+            if (fileModTime >= 0) {
+                setFile.setModTime(fileModTime);
+            }
+            setFile.setStartTime(System.currentTimeMillis());
+            setFile.setBlockSize(getBlockSize());
+            if (fileSize >= 0) {
+                setFile.setBytesTotal(fileSize);
+                setFile.setBlocksTotal(file.getBytesTotal() / getBlockSize());
+                if (file.getBlocksTotal() * getBlockSize() < file.getBytesTotal()) {
+                    setFile.setBlocksTotal(file.getBlocksTotal() + 1);
+                }
+                bytesTotal = bytesTotal + file.getBytesTotal();
+            }
+        }
+        // Good to go on another download.
+        return true;
     }
 
 }

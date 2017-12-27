@@ -51,4 +51,28 @@ Ymodem/G is the fastest of the old serial protocols, having the least
 overhead (4 bytes overhead per 1024 bytes data).  However, it is the
 most fragile: it requires an 8-bit clean channel with error
 correction.  (Also, the Omen Tech rzsz 'rb' Ymodem receiver cannot
-specify streaming behavior, so it is only good for downloads.)
+specify streaming behavior, so Ymodem/G is only good when using 'sb'
+on a remote machine to download to one's local machine.)
+
+Kermit
+------
+
+Jermit supports the following features of Kermit:
+
+* Normal and extended-length (up to 9k) packets.
+
+* Streaming (requires reliable channel, e.g. TCP).
+
+* File Attributes, including correct time stamp and unmangled
+  filename.
+
+* (TODO) Full duplex sliding windows.
+
+* (TODO) Internet Kermit Server, including SSL support.
+
+* (TODO) Non-standard bidirectional file transfer support.
+
+Kermit is the best all-round serial file transfer protocol available.
+It is fast, versatile, and extremely well-designed.  If one must pick
+a serial protocol, they would do well to first prove that Kermit is
+the wrong choice before looking further.

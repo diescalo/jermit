@@ -33,7 +33,7 @@ package jermit.protocol.kermit;
  * Protocol Manual, 6th Edition", 1986.  This state machine is a superset
  * of those states.
  */
-public enum KermitState {
+enum KermitState {
 
     /**
      * Before the first byte is sent.
