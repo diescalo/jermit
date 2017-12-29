@@ -29,7 +29,10 @@
 package jermit.protocol.kermit;
 
 import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 
 import jermit.io.EOFInputStream;
 
@@ -266,15 +269,22 @@ abstract class Packet {
      */
     protected boolean dontEncodeData = false;
 
+    /**
+     * Map of counts of Ctrl-C to InputStream.  Key is
+     * System.identityHashCode(), value is consecutive Ctrl-C count.
+     */
+    private static Map<Integer, Integer> ctrlCMap = null;
+
     // ------------------------------------------------------------------------
     // Constructors -----------------------------------------------------------
     // ------------------------------------------------------------------------
 
     /**
-     * Static initializer sets up CRC table.
+     * Static initializer sets up CRC table and Ctrl-C counts.
      */
     static {
         makeCrc16Table();
+        ctrlCMap = new HashMap<Integer, Integer>();
     }
 
     /**
@@ -1216,6 +1226,68 @@ abstract class Packet {
     }
 
     /**
+     * Reads the next byte of data from the input stream.
+     *
+     * @return the next byte of data, or -1 if there is no more data because
+     * the end of the stream has been reached.
+     * @throws IOException if an I/O error occurs
+     * @throws KermitCancelledException if three Ctrl-C's are encountered in
+     * a row
+     */
+    private static int readCheckCtrlC(final InputStream input) throws IOException, KermitCancelledException {
+
+        Integer ctrlCKey = System.identityHashCode(input);
+        Integer ctrlCCount = ctrlCMap.get(ctrlCKey);
+        if (ctrlCCount == null) {
+            ctrlCCount = 0;
+        }
+        int ch = input.read();
+        if (ch == 0x03) {
+            ctrlCCount++;
+            if (ctrlCCount == 3) {
+                throw new KermitCancelledException("3 Ctrl-C's seen");
+            }
+        }
+        ctrlCMap.put(ctrlCKey, ctrlCCount);
+        return ch;
+    }
+
+    /**
+     * Reads some number of bytes from the input stream and stores them into
+     * the buffer array b.
+     *
+     * @param b the buffer into which the data is read.
+     * @return the total number of bytes read into the buffer, or -1 if there
+     * is no more data because the end of the stream has been reached.
+     * @throws IOException if an I/O error occurs
+     * @throws KermitCancelledException if three Ctrl-C's are encountered in
+     * a row
+     */
+    public static int readCheckCtrlC(final byte[] b,
+        final InputStream input) throws IOException, KermitCancelledException {
+
+        Integer ctrlCKey = System.identityHashCode(input);
+        Integer ctrlCCount = ctrlCMap.get(ctrlCKey);
+        if (ctrlCCount == null) {
+            ctrlCCount = 0;
+        }
+        int rc = input.read(b);
+        for (int i = 0; i < b.length; i++) {
+            byte ch = b[i];
+            if (ch == 0x03) {
+                ctrlCCount++;
+                if (ctrlCCount == 3) {
+                    throw new KermitCancelledException("3 Ctrl-C's seen");
+                }
+            } else {
+                ctrlCCount = 0;
+            }
+        }
+        ctrlCMap.put(ctrlCKey, ctrlCCount);
+        return rc;
+    }
+
+    /**
      * Decode wire-encoded bytes into the a packet.
      *
      * @param input stream to read from
@@ -1229,7 +1301,8 @@ abstract class Packet {
      */
     public static Packet decode(final EOFInputStream input,
         final TransferParameters transferParameters,
-        final KermitState kermitState) throws IOException {
+        final KermitState kermitState) throws IOException,
+                                              KermitCancelledException {
 
         KermitInit remote = transferParameters.remote;
         KermitInit active = transferParameters.active;
@@ -1239,10 +1312,10 @@ abstract class Packet {
         int checkTypeLength = checkType;
 
         // Find the start of the packet
-        int ch = input.read();
+        int ch = readCheckCtrlC(input);
         // System.err.printf("scanning for MARK: %c %02x\n", (char) ch, ch);
 
-        for (;ch != active.MARK; ch = input.read()) {
+        for (;ch != active.MARK; ch = readCheckCtrlC(input)) {
             // Keep scanning until we see the MARK byte.
             // System.err.printf("scanning for MARK: %c %02x\n", (char) ch, ch);
         }
@@ -1251,7 +1324,7 @@ abstract class Packet {
         }
 
         // LEN
-        int len = unChar((byte) input.read());
+        int len = unChar((byte) readCheckCtrlC(input));
         if (DEBUG) {
             System.err.printf("LEN: %c %02x %d\n", (char) len, len, len);
         }
@@ -1281,7 +1354,7 @@ abstract class Packet {
         checkArray.write(toChar((byte) len));
 
         // SEQ
-        byte seq = unChar((byte) input.read());
+        byte seq = unChar((byte) readCheckCtrlC(input));
         if (DEBUG) {
             System.err.printf("SEQ: %c %02x %d\n", (char) seq, seq, seq);
         }
@@ -1292,7 +1365,7 @@ abstract class Packet {
         checkArray.write(toChar(seq));
 
         // TYPE
-        byte typeChar = (byte) input.read();
+        byte typeChar = (byte) readCheckCtrlC(input);
         if (DEBUG) {
             System.err.printf("TYPE: %c %02x %d\n", (char) typeChar, typeChar,
                 typeChar);
@@ -1301,8 +1374,8 @@ abstract class Packet {
 
         if (longPacket == true) {
             // LENX1, LENX2, HCHECK
-            byte lenx1 = unChar((byte) input.read());
-            byte lenx2 = unChar((byte) input.read());
+            byte lenx1 = unChar((byte) readCheckCtrlC(input));
+            byte lenx2 = unChar((byte) readCheckCtrlC(input));
             len = lenx1 * 95 + lenx2;
 
             if (DEBUG) {
@@ -1319,7 +1392,7 @@ abstract class Packet {
             checkArray.write(toChar(lenx2));
 
             // Grab and compute the extended header checksum
-            byte hcheckGiven = unChar((byte) input.read());
+            byte hcheckGiven = unChar((byte) readCheckCtrlC(input));
             checkArray.write(toChar((byte) hcheckGiven));
 
             short hcheckComputed = (short) (toChar((byte) 0) + toChar(seq) +
@@ -1356,8 +1429,20 @@ abstract class Packet {
         if (DEBUG) {
             System.err.printf("Reading:");
         }
+        byte [] bulkRead = new byte[len];
+        readCheckCtrlC(bulkRead, input);
+        if (DEBUG) {
+            for (int i = 0; i < bulkRead.length; i++) {
+                System.err.printf(" %02x", (byte) ch);
+            }
+            System.err.println();
+        }
+        checkArray.write(bulkRead);
+        len = 0;
+        
+        /*
         while (len > 0) {
-            ch = input.read();
+            ch = readCheckCtrlC(input);
             if (DEBUG) {
                 System.err.printf(" %02x", (byte) ch);
             }
@@ -1367,7 +1452,7 @@ abstract class Packet {
         if (DEBUG) {
             System.err.println();
         }
-
+        */
         Type packetType = getPacketType(typeChar);
 
         switch (packetType) {

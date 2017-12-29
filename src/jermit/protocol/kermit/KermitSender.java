@@ -223,6 +223,12 @@ public class KermitSender implements Runnable {
                 }
                 session.abort("NETWORK I/O ERROR");
                 session.cancelFlag = 1;
+            } catch (KermitCancelledException e) {
+                if (DEBUG) {
+                    e.printStackTrace();
+                }
+                session.abort("CANCELLED BY REMOTE SIDE");
+                session.cancelFlag = 1;
             }
 
         } // while ((session.cancelFlag == 0) && (done == false))
@@ -263,8 +269,12 @@ public class KermitSender implements Runnable {
      * Wait for the receiver's Send-Init ACK packet.
      *
      * @throws IOException if a java.io operation throws
+     * @throws KermitCancelledException if three Ctrl-C's are encountered in
+     * a row
      */
-    private void sendBeginWait() throws EOFException, IOException {
+    private void sendBeginWait() throws EOFException, IOException,
+                                        KermitCancelledException {
+
         if (DEBUG) {
             System.err.println("sendBeginWait() waiting for Send-Init ACK...");
         }
@@ -381,8 +391,12 @@ public class KermitSender implements Runnable {
      * Wait for the receiver's File ACK packet.
      *
      * @throws IOException if a java.io operation throws
+     * @throws KermitCancelledException if three Ctrl-C's are encountered in
+     * a row
      */
-    private void sendFileWait() throws EOFException, IOException {
+    private void sendFileWait() throws EOFException, IOException,
+                                       KermitCancelledException {
+
         if (DEBUG) {
             System.err.println("sendFileWait() waiting for File ACK...");
         }
@@ -453,8 +467,12 @@ public class KermitSender implements Runnable {
      * Wait for the receiver's FileAttributes ACK packet.
      *
      * @throws IOException if a java.io operation throws
+     * @throws KermitCancelledException if three Ctrl-C's are encountered in
+     * a row
      */
-    private void sendFileAttributesWait() throws EOFException, IOException {
+    private void sendFileAttributesWait() throws EOFException, IOException,
+                                                 KermitCancelledException {
+
         if (DEBUG) {
             System.err.println("sendFileAttributesWait() waiting for " +
                 "Attributes ACK...");
@@ -486,8 +504,11 @@ public class KermitSender implements Runnable {
      * Send the Data packet, and maybe look for a corresponding ACK.
      *
      * @throws IOException if a java.io operation throws
+     * @throws KermitCancelledException if three Ctrl-C's are encountered in
+     * a row
      */
-    private void sendData() throws IOException {
+    private void sendData() throws IOException, KermitCancelledException {
+
         if (DEBUG) {
             System.err.printf("sendFileData() sending data packet at %d\n",
                 filePosition);
@@ -581,8 +602,12 @@ public class KermitSender implements Runnable {
      * Wait for the receiver's EOF ACK packet.
      *
      * @throws IOException if a java.io operation throws
+     * @throws KermitCancelledException if three Ctrl-C's are encountered in
+     * a row
      */
-    private void sendEofWait() throws EOFException, IOException {
+    private void sendEofWait() throws EOFException, IOException,
+                                      KermitCancelledException {
+
         if (DEBUG) {
             System.err.println("sendEofWait() waiting for EOF ACK...");
         }
@@ -649,8 +674,12 @@ public class KermitSender implements Runnable {
      * Wait for the receiver's BREAK ACK packet.
      *
      * @throws IOException if a java.io operation throws
+     * @throws KermitCancelledException if three Ctrl-C's are encountered in
+     * a row
      */
-    private void sendBreakWait() throws EOFException, IOException {
+    private void sendBreakWait() throws EOFException, IOException,
+                                        KermitCancelledException {
+
         if (DEBUG) {
             System.err.println("sendBreakWait() waiting for BREAK ACK...");
         }

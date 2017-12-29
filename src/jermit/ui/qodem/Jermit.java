@@ -262,7 +262,8 @@ public class Jermit {
         }
 
         // We need System.in/out to behave like a dumb file.
-        // DEBUG: don't do this, be able to exit. with ^C.
+
+        // DEBUG: comment out the following line to be able to exit with ^C.
         Stty.setRaw();
 
         // Now spin up the UI thread and transfer thread and wait for them

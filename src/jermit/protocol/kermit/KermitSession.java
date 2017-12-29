@@ -397,9 +397,11 @@ public class KermitSession extends SerialFileTransferSession {
         if (DEBUG) {
             System.err.println("ABORT: " + message);
         }
-        addErrorMessage(message);
-
-        // TODO
+        synchronized (this) {
+            setState(State.ABORT);
+            cancelFlag = 1;
+            addErrorMessage(message);
+        }
     }
 
     /**
@@ -417,8 +419,12 @@ public class KermitSession extends SerialFileTransferSession {
      *
      * @return packet the packet received
      * @throws IOException if a java.io operation throws
+     * @throws KermitCancelledException if three Ctrl-C's are encountered in
+     * a row
      */
-    protected Packet getPacket() throws EOFException, IOException {
+    protected Packet getPacket() throws EOFException, IOException,
+                                        KermitCancelledException {
+
         return Packet.decode(input, transferParameters, kermitState);
     }
 

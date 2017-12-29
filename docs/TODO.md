@@ -5,13 +5,15 @@ Jermit TODO List
 
   Kermit tests:
     NPAD
-    3 Ctrl-C's kill transfer
     Noisy transfer
     File protection
     FileAttributes.NewFileAccessMode's
     Skip file - download
     Skip file - upload
     Resume
+    Robust filenames option
+    Long packets option
+    Resend option
 
 0.0.4:
 
@@ -25,7 +27,7 @@ Jermit TODO List
     KermitServerSocket
     KermitServer
 
-0.0.5:
+0.1.0:
 
   SerialURLConnection
     XmodemURLConnection
@@ -33,8 +35,7 @@ Jermit TODO List
     ZmodemURLConnection
     KermitURLConnection
 
-
-0.0.6:
+0.1.1:
 
   jermit.ui.kermit.Main
     - looks like C-Kermit
@@ -44,7 +45,7 @@ Jermit TODO List
   Bidirectional Kermit:
     SelectableInputStream
 
-0.0.7:
+0.2.0:
 
   Test under Eclipse
 
@@ -55,7 +56,7 @@ Jermit TODO List
 
   Bug hunt
 
-0.0.8:
+0.2.1:
 
   Final release to 1.0.0
 
@@ -94,7 +95,7 @@ Properties to control URLConnection behavior:
                            overrides windowing
   jermit.kermit.robustFilenames: default false
   jermit.kermit.longPackets: default true
-  jermit.kermit.download.resend: default true
+  jermit.kermit.resend: default true
   jermit.kermit.download.forceBinary: default true
   jermit.kermit.upload.forceBinary: default true
 

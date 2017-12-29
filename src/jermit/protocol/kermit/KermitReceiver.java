@@ -184,6 +184,12 @@ public class KermitReceiver implements Runnable {
                 }
                 session.abort("NETWORK I/O ERROR");
                 session.cancelFlag = 1;
+            } catch (KermitCancelledException e) {
+                if (DEBUG) {
+                    e.printStackTrace();
+                }
+                session.abort("CANCELLED BY REMOTE SIDE");
+                session.cancelFlag = 1;
             }
 
         } // while ((session.cancelFlag == 0) && (done == false))
@@ -224,8 +230,12 @@ public class KermitReceiver implements Runnable {
      * Wait for the Send-Init packet.
      *
      * @throws IOException if a java.io operation throws
+     * @throws KermitCancelledException if three Ctrl-C's are encountered in
+     * a row
      */
-    private void receiveBeginWait() throws EOFException, IOException {
+    private void receiveBeginWait() throws EOFException, IOException,
+                                           KermitCancelledException {
+
         if (DEBUG) {
             System.err.println("receiveBeginWait() waiting for Send-Init...");
         }
@@ -269,8 +279,12 @@ public class KermitReceiver implements Runnable {
      * Wait for a File-Header packet.
      *
      * @throws IOException if a java.io operation throws
+     * @throws KermitCancelledException if three Ctrl-C's are encountered in
+     * a row
      */
-    private void receiveFile() throws EOFException, IOException {
+    private void receiveFile() throws EOFException, IOException,
+                                      KermitCancelledException {
+
         if (DEBUG) {
             System.err.println("receiveFile() waiting for File...");
         }
@@ -326,8 +340,11 @@ public class KermitReceiver implements Runnable {
      * Wait for a File-Attributes packet.
      *
      * @throws IOException if a java.io operation throws
+     * @throws KermitCancelledException if three Ctrl-C's are encountered in
+     * a row
      */
-    private void receiveFileAttributes() throws EOFException, IOException {
+    private void receiveFileAttributes() throws EOFException, IOException,
+                                                KermitCancelledException {
         if (DEBUG) {
             System.err.println("receiveFile() waiting for Attributes...");
         }
@@ -401,8 +418,12 @@ public class KermitReceiver implements Runnable {
      * Wait for a Data packet.
      *
      * @throws IOException if a java.io operation throws
+     * @throws KermitCancelledException if three Ctrl-C's are encountered in
+     * a row
      */
-    private void receiveData() throws EOFException, IOException {
+    private void receiveData() throws EOFException, IOException,
+                                      KermitCancelledException {
+
         if (DEBUG) {
             System.err.println("receiveData() waiting for Data...");
         }
