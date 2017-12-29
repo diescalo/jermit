@@ -39,7 +39,7 @@ import jermit.tests.SerialTransferTest;
 import jermit.tests.TestFailedException;
 
 /**
- * Test a basic Xmodem file transfer.
+ * Test a basic Ymodem file transfer.
  */
 public class Ymodem5 extends SerialTransferTest implements Runnable {
 

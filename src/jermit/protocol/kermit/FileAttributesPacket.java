@@ -49,7 +49,6 @@ class FileAttributesPacket extends Packet {
      */
     public enum NewFileAccessMode {
 
-
         /**
          * Always create a new file (never collide).
          */
@@ -131,7 +130,7 @@ class FileAttributesPacket extends Packet {
      * @param checkType checksum type
      * @param seq sequence number of the packet
      */
-    public FileAttributesPacket(final byte checkType, final byte seq) {
+    public FileAttributesPacket(final byte checkType, final int seq) {
         super(Type.FILE, (byte) 'A', "File Attributes", checkType, seq);
 
         // Don't encode it when serializing
@@ -539,7 +538,7 @@ class FileAttributesPacket extends Packet {
         Calendar cal = Calendar.getInstance();
         cal.setTimeInMillis(fileModTime);
 
-        String timeString = String.format("%1$Ct%1$yt%1$tm%1$td " +
+        String timeString = String.format("%1$tC%1$ty%1$tm%1$td " +
             "%1$tH%1$tM%1$tS", cal);
         byte [] timeBytes = null;
         try {
@@ -591,7 +590,7 @@ class FileAttributesPacket extends Packet {
             kermitProtection |= 0x01;
         }
         if (DEBUG) {
-            System.err.printf("writeToData() - kermitProtection %c %02x",
+            System.err.printf("writeToData() - kermitProtection %c %02x\n",
                 (char) kermitProtection, kermitProtection);
         }
         output.write('-');
@@ -601,7 +600,7 @@ class FileAttributesPacket extends Packet {
         // Resend capability
         if (doResend == true) {
             if (DEBUG) {
-                System.err.println("writeToData() - RESEND");
+                System.err.println("writeToData() - RESEND\n");
             }
             output.write('+');
             output.write(toChar((byte) 1));

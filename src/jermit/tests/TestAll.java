@@ -94,12 +94,15 @@ public class TestAll {
              * KERMIT ---------------------------------------------------------
              */
 
-            /*
-             * Downloads - clean line
-             */
+            if (false) {
             (new Kermit1()).doTest();
             (new Kermit2()).doTest();
             (new Kermit3()).doTest();
+            (new Kermit4()).doTest();
+            (new Kermit5()).doTest();
+            }
+            (new Kermit6()).doTest();
+            (new Kermit7()).doTest();
 
         } catch (Throwable t) {
             t.printStackTrace();

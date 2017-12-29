@@ -38,7 +38,7 @@ import jermit.protocol.FileInfo;
 import jermit.protocol.Protocol;
 import jermit.protocol.SerialFileTransferSession;
 import jermit.protocol.kermit.KermitReceiver;
-// import jermit.protocol.kermit.KermitSender;
+import jermit.protocol.kermit.KermitSender;
 import jermit.protocol.xmodem.XmodemReceiver;
 import jermit.protocol.xmodem.XmodemSender;
 import jermit.protocol.xmodem.XmodemSession;
@@ -175,7 +175,7 @@ public class Jermit {
         YmodemReceiver rb = null;
         YmodemSender sb = null;
         KermitReceiver rk = null;
-        // KermitSender sk = null;
+        KermitSender sk = null;
 
         InputStream in = System.in;
         OutputStream out = System.out;
@@ -188,7 +188,6 @@ public class Jermit {
         switch (protocol) {
 
         case XMODEM:
-
             if (download == true) {
                 // Download: default to vanilla unless the command line
                 // arguments ask for more.
@@ -205,7 +204,6 @@ public class Jermit {
                 transferThread = new Thread(rx);
 
             } else {
-
                 // Upload: default to CRC.  This will automatically fallback
                 // to vanilla if the receiver initiates with NAK instead of
                 // 'C'.  We can't default to 1K because we can't guarantee
@@ -222,8 +220,8 @@ public class Jermit {
                 transferThread = new Thread(sx);
             }
             break;
-        case YMODEM:
 
+        case YMODEM:
             if (download == true) {
                 // Use vanilla only.  rb does not have a way to specify -G.
                 YmodemSession.YFlavor yFlavor = YmodemSession.YFlavor.VANILLA;
@@ -243,20 +241,24 @@ public class Jermit {
                 transferThread = new Thread(sb);
             }
             break;
+
         case ZMODEM:
             // TODO
             System.err.println("Zmodem not yet supported.");
             System.exit(10);
+            break;
+
         case KERMIT:
             if (download == true) {
                 rk = new KermitReceiver(in, out, downloadPath);
                 session = rk.getSession();
                 transferThread = new Thread(rk);
             } else {
-                // TODO
-                System.err.println("Kermit sending yet supported.");
-                System.exit(10);
+                sk = new KermitSender(in, out, fileArgs);
+                session = sk.getSession();
+                transferThread = new Thread(sk);
             }
+            break;
         }
 
         // We need System.in/out to behave like a dumb file.
@@ -271,7 +273,7 @@ public class Jermit {
         ui.ymodemReceiver = rb;
         ui.ymodemSender = sb;
         ui.kermitReceiver = rk;
-        // ui.kermitSender = sk;
+        ui.kermitSender = sk;
         uiThread = new Thread(ui);
         uiThread.start();
         transferThread.start();

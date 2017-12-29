@@ -51,6 +51,10 @@ import jermit.protocol.ymodem.YmodemSession;
  */
 public class XmodemSession extends SerialFileTransferSession {
 
+    // ------------------------------------------------------------------------
+    // Variables --------------------------------------------------------------
+    // ------------------------------------------------------------------------
+
     // If true, enable some debugging output.
     private static final boolean DEBUG = false;
 
@@ -154,14 +158,114 @@ public class XmodemSession extends SerialFileTransferSession {
      */
     private Flavor flavor = Flavor.VANILLA;
 
+    // ------------------------------------------------------------------------
+    // Constructors -----------------------------------------------------------
+    // ------------------------------------------------------------------------
+
     /**
-     * Get the type of Xmodem transfer to perform.
+     * Construct an instance to represent a single file upload.
      *
-     * @return the Xmodem flavor
+     * @param flavor the Xmodem flavor to use
+     * @param input a stream that receives bytes sent by another Xmodem
+     * instance
+     * @param output a stream to sent bytes to another Xmodem instance
+     * @param uploadFiles list of files to upload
+     * @throws IllegalArgumentException if uploadFiles contains more than one
+     * entry
      */
-    public Flavor getFlavor() {
-        return flavor;
+    public XmodemSession(final Flavor flavor, final InputStream input,
+        final OutputStream output, final List<String> uploadFiles) {
+
+        super(uploadFiles);
+        if ((uploadFiles.size() != 1) && (!(this instanceof YmodemSession))) {
+            // This is a bit ugly. :-( YmodemSession uses this constructor
+            // (yay OOP), but it is also a public Xmodem constructor.  Check
+            // to see if this is being used by Ymodem, and if so allow
+            // multiple files.
+            throw new IllegalArgumentException("Xmodem can only upload one " +
+                "file at a time");
+        }
+        this.flavor             = flavor;
+        this.protocol           = Protocol.XMODEM;
+        this.output             = output;
+        this.currentFile        = -1;
+        this.seenFirstCAN       = false;
+
+        if (input instanceof TimeoutInputStream) {
+            // Someone has already set the timeout.  Keep their value.
+            this.input  = new EOFInputStream(input);
+        } else {
+            // Use the default value for this flavor of Xmodem.
+            this.input  = new EOFInputStream(new TimeoutInputStream(input,
+                    getTimeout()));
+        }
     }
+
+    /**
+     * Construct an instance to represent a single file upload or download.
+     *
+     * @param flavor the Xmodem flavor to use
+     * @param input a stream that receives bytes sent by another Xmodem
+     * instance
+     * @param output a stream to sent bytes to another Xmodem instance
+     * @param file path to one file on the local filesystem
+     * @param download If true, this session represents a download.  If
+     * false, it represents an upload.
+     */
+    public XmodemSession(final Flavor flavor, final InputStream input,
+        final OutputStream output, final LocalFileInterface file,
+        final boolean download) {
+
+        super(file, download);
+        this.flavor             = flavor;
+        this.protocol           = Protocol.XMODEM;
+        this.output             = output;
+        this.currentFile        = 0;
+        this.seenFirstCAN       = false;
+
+        if (input instanceof TimeoutInputStream) {
+            // Someone has already set the timeout.  Keep their value.
+            this.input  = new EOFInputStream(input);
+        } else {
+            // Use the default value for this flavor of Xmodem.
+            this.input  = new EOFInputStream(new TimeoutInputStream(input,
+                    getTimeout()));
+        }
+    }
+
+    /**
+     * Construct an instance to represent a batch file upload or download.
+     *
+     * @param flavor the Xmodem flavor to use
+     * @param input a stream that receives bytes sent by another Xmodem
+     * instance
+     * @param output a stream to sent bytes to another Xmodem instance
+     * @param download If true, this session represents a download.  If
+     * false, it represents an upload.
+     */
+    protected XmodemSession(final Flavor flavor, final InputStream input,
+        final OutputStream output, final boolean download) {
+
+        super(download);
+        this.flavor             = flavor;
+        this.protocol           = Protocol.XMODEM;
+        this.output             = output;
+        this.currentFile        = -1;
+        this.seenFirstCAN       = false;
+
+        if (input instanceof TimeoutInputStream) {
+            // Someone has already set the timeout.  Keep their value.
+            this.input  = new EOFInputStream(input);
+        } else {
+            // Use the default value for this flavor of Xmodem.
+            this.input  = new EOFInputStream(new TimeoutInputStream(input,
+                    getTimeout()));
+        }
+    }
+
+    // ------------------------------------------------------------------------
+    // SerialFileTransferSession ----------------------------------------------
+    // ------------------------------------------------------------------------
 
     /**
      * Get the batchable flag.
@@ -172,6 +276,134 @@ public class XmodemSession extends SerialFileTransferSession {
     @Override
     public boolean isBatchable() {
         return false;
+    }
+
+    /**
+     * Set the state of this transfer.  Overridden to permit xmodem package
+     * access.
+     *
+     * @param state one of the State enum values
+     */
+    @Override
+    protected void setState(final State state) {
+        super.setState(state);
+    }
+
+    /**
+     * Get the protocol name.  Each protocol can have several variants.
+     *
+     * @return the protocol name for this transfer
+     */
+    @Override
+    public String getProtocolName() {
+        switch (flavor) {
+        case VANILLA:
+            return "Xmodem";
+        case RELAXED:
+            return "Xmodem Relaxed";
+        case CRC:
+            return "Xmodem/CRC";
+        case X_1K:
+            return "Xmodem-1K";
+        case X_1K_G:
+            return "Xmodem-1K/G";
+        }
+
+        // Should never get here.
+        throw new IllegalArgumentException("Xmodem flavor is not set " +
+            "correctly");
+
+    }
+
+    /**
+     * Get the block size.  Each protocol can have several variants.
+     *
+     * @return the block size
+     */
+    @Override
+    public int getBlockSize() {
+        if ((flavor == Flavor.X_1K) || (flavor == Flavor.X_1K_G)) {
+            return 1024;
+        }
+        return 128;
+    }
+
+    /**
+     * Cancel this entire file transfer.  The session state will become
+     * ABORT.
+     *
+     * @param keepPartial If true, save whatever has been collected if this
+     * was a download.  If false, delete the file.
+     */
+    @Override
+    public void cancelTransfer(boolean keepPartial) {
+        synchronized (this) {
+            setState(State.ABORT);
+            if (keepPartial == true) {
+                cancelFlag = 1;
+            } else {
+                cancelFlag = 2;
+            }
+            addErrorMessage("CANCELLED BY USER");
+        }
+    }
+
+    /**
+     * Skip this file and move to the next file in the transfer.  Note that
+     * this does nothing for Xmodem.
+     *
+     * @param keepPartial If true, save whatever has been collected if this
+     * was a download.  If false, delete the file.
+     */
+    @Override
+    public void skipFile(boolean keepPartial) {
+        // Do nothing.  Xmodem cannot skip a file.
+    }
+
+    /**
+     * Add an INFO message to the messages list.  Overridden to permit xmodem
+     * package access.
+     *
+     * @param message the message text
+     */
+    @Override
+    protected synchronized void addInfoMessage(String message) {
+        super.addInfoMessage(message);
+    }
+
+    /**
+     * Add an ERROR message to the messages list.  Overridden to permit
+     * xmodem package access.
+     *
+     * @param message the message text
+     */
+    @Override
+    protected synchronized void addErrorMessage(String message) {
+        super.addErrorMessage(message);
+    }
+
+    /**
+     * Set the current file being transferred.  Overridden to permit xmodem
+     * package access.
+     *
+     * @param currentFile the index in the files list
+     */
+    @Override
+    protected synchronized void setCurrentFile(final int currentFile) {
+        this.currentFile = currentFile;
+    }
+
+    // ------------------------------------------------------------------------
+    // XmodemSession ----------------------------------------------------------
+    // ------------------------------------------------------------------------
+
+    /**
+     * Get the type of Xmodem transfer to perform.
+     *
+     * @return the Xmodem flavor
+     */
+    public Flavor getFlavor() {
+        return flavor;
     }
 
     /**
@@ -253,54 +485,6 @@ public class XmodemSession extends SerialFileTransferSession {
      */
     protected void setEndTime(final long endTime) {
         this.endTime = endTime;
-    }
-
-    /**
-     * Set the state of this transfer.  Overridden to permit xmodem package
-     * access.
-     *
-     * @param state one of the State enum values
-     */
-    @Override
-    protected void setState(final State state) {
-        super.setState(state);
-    }
-
-    /**
-     * Get the protocol name.  Each protocol can have several variants.
-     *
-     * @return the protocol name for this transfer
-     */
-    public String getProtocolName() {
-        switch (flavor) {
-        case VANILLA:
-            return "Xmodem";
-        case RELAXED:
-            return "Xmodem Relaxed";
-        case CRC:
-            return "Xmodem/CRC";
-        case X_1K:
-            return "Xmodem-1K";
-        case X_1K_G:
-            return "Xmodem-1K/G";
-        }
-
-        // Should never get here.
-        throw new IllegalArgumentException("Xmodem flavor is not set " +
-            "correctly");
-
-    }
-
-    /**
-     * Get the block size.  Each protocol can have several variants.
-     *
-     * @return the block size
-     */
-    public int getBlockSize() {
-        if ((flavor == Flavor.X_1K) || (flavor == Flavor.X_1K_G)) {
-            return 1024;
-        }
-        return 128;
     }
 
     /**
@@ -1147,137 +1331,6 @@ public class XmodemSession extends SerialFileTransferSession {
     }
 
     /**
-     * Construct an instance to represent a single file upload.
-     *
-     * @param flavor the Xmodem flavor to use
-     * @param input a stream that receives bytes sent by another Xmodem
-     * instance
-     * @param output a stream to sent bytes to another Xmodem instance
-     * @param uploadFiles list of files to upload
-     * @throws IllegalArgumentException if uploadFiles contains more than one
-     * entry
-     */
-    public XmodemSession(final Flavor flavor, final InputStream input,
-        final OutputStream output, final List<String> uploadFiles) {
-
-        super(uploadFiles);
-        if ((uploadFiles.size() != 1) && (!(this instanceof YmodemSession))) {
-            // This is a bit ugly. :-( YmodemSession uses this constructor
-            // (yay OOP), but it is also a public Xmodem constructor.  Check
-            // to see if this is being used by Ymodem, and if so allow
-            // multiple files.
-            throw new IllegalArgumentException("Xmodem can only upload one " +
-                "file at a time");
-        }
-        this.flavor             = flavor;
-        this.protocol           = Protocol.XMODEM;
-        this.output             = output;
-        this.currentFile        = -1;
-        this.seenFirstCAN       = false;
-
-        if (input instanceof TimeoutInputStream) {
-            // Someone has already set the timeout.  Keep their value.
-            this.input  = new EOFInputStream(input);
-        } else {
-            // Use the default value for this flavor of Xmodem.
-            this.input  = new EOFInputStream(new TimeoutInputStream(input,
-                    getTimeout()));
-        }
-    }
-
-    /**
-     * Construct an instance to represent a single file upload or download.
-     *
-     * @param flavor the Xmodem flavor to use
-     * @param input a stream that receives bytes sent by another Xmodem
-     * instance
-     * @param output a stream to sent bytes to another Xmodem instance
-     * @param file path to one file on the local filesystem
-     * @param download If true, this session represents a download.  If
-     * false, it represents an upload.
-     */
-    public XmodemSession(final Flavor flavor, final InputStream input,
-        final OutputStream output, final LocalFileInterface file,
-        final boolean download) {
-
-        super(file, download);
-        this.flavor             = flavor;
-        this.protocol           = Protocol.XMODEM;
-        this.output             = output;
-        this.currentFile        = 0;
-        this.seenFirstCAN       = false;
-
-        if (input instanceof TimeoutInputStream) {
-            // Someone has already set the timeout.  Keep their value.
-            this.input  = new EOFInputStream(input);
-        } else {
-            // Use the default value for this flavor of Xmodem.
-            this.input  = new EOFInputStream(new TimeoutInputStream(input,
-                    getTimeout()));
-        }
-    }
-
-    /**
-     * Construct an instance to represent a batch file upload or download.
-     *
-     * @param flavor the Xmodem flavor to use
-     * @param input a stream that receives bytes sent by another Xmodem
-     * instance
-     * @param output a stream to sent bytes to another Xmodem instance
-     * @param download If true, this session represents a download.  If
-     * false, it represents an upload.
-     */
-    protected XmodemSession(final Flavor flavor, final InputStream input,
-        final OutputStream output, final boolean download) {
-
-        super(download);
-        this.flavor             = flavor;
-        this.protocol           = Protocol.XMODEM;
-        this.output             = output;
-        this.currentFile        = -1;
-        this.seenFirstCAN       = false;
-
-        if (input instanceof TimeoutInputStream) {
-            // Someone has already set the timeout.  Keep their value.
-            this.input  = new EOFInputStream(input);
-        } else {
-            // Use the default value for this flavor of Xmodem.
-            this.input  = new EOFInputStream(new TimeoutInputStream(input,
-                    getTimeout()));
-        }
-    }
-
-    /**
-     * Cancel this entire file transfer.  The session state will become
-     * ABORT.
-     *
-     * @param keepPartial If true, save whatever has been collected if this
-     * was a download.  If false, delete the file.
-     */
-    public void cancelTransfer(boolean keepPartial) {
-        synchronized (this) {
-            setState(State.ABORT);
-            if (keepPartial == true) {
-                cancelFlag = 1;
-            } else {
-                cancelFlag = 2;
-            }
-            addErrorMessage("CANCELLED BY USER");
-        }
-    }
-
-    /**
-     * Skip this file and move to the next file in the transfer.  Note that
-     * this does nothing for Xmodem.
-     *
-     * @param keepPartial If true, save whatever has been collected if this
-     * was a download.  If false, delete the file.
-     */
-    public void skipFile(boolean keepPartial) {
-        // Do nothing.  Xmodem cannot skip a file.
-    }
-
-    /**
      * Create a FileInfoModifier for the current file being transferred.
      * This is used for XmodemSender and XmodemReceiver to get write access
      * to the FileInfo fields.
@@ -1285,39 +1338,6 @@ public class XmodemSession extends SerialFileTransferSession {
     protected FileInfoModifier getCurrentFileInfoModifier() {
         FileInfo file = getCurrentFile();
         return getFileInfoModifier(file);
-    }
-
-    /**
-     * Add an INFO message to the messages list.  Overridden to permit xmodem
-     * package access.
-     *
-     * @param message the message text
-     */
-    @Override
-    protected synchronized void addInfoMessage(String message) {
-        super.addInfoMessage(message);
-    }
-
-    /**
-     * Add an ERROR message to the messages list.  Overridden to permit
-     * xmodem package access.
-     *
-     * @param message the message text
-     */
-    @Override
-    protected synchronized void addErrorMessage(String message) {
-        super.addErrorMessage(message);
-    }
-
-    /**
-     * Set the current file being transferred.  Overridden to permit xmodem
-     * package access.
-     *
-     * @param currentFile the index in the files list
-     */
-    @Override
-    protected synchronized void setCurrentFile(final int currentFile) {
-        this.currentFile = currentFile;
     }
 
 }

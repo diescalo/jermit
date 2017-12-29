@@ -218,8 +218,8 @@ class SendInitPacket extends Packet {
                     if ((byte) (capas & 0x08) != 0) {
                         // Ability to accept "A" packets
                         if (DEBUG) {
-                            System.err.printf("    CAPAS %d: Can accept A packets\n",
-                                (capasI - 9));
+                            System.err.printf("    CAPAS %d: Can " +
+                                "accept A packets\n", (capasI - 9));
                         }
                         init.attributes = true;
                     }
@@ -227,7 +227,8 @@ class SendInitPacket extends Packet {
                     if ((byte) (capas & 0x04) != 0) {
                         // Ability to do full duplex sliding window
                         if (DEBUG) {
-                            System.err.printf("    CAPAS %d: Can do full duplex sliding windows\n",
+                            System.err.printf("    CAPAS %d: Can " +
+                                "do full duplex sliding windows\n",
                                 (capasI - 9));
                         }
                         init.windowing = true;
@@ -237,8 +238,8 @@ class SendInitPacket extends Packet {
                         // Ability to transmit and receive extended-length
                         // packets
                         if (DEBUG) {
-                            System.err.printf("    CAPAS %d: Can do extended-length packets\n",
-                                (capasI - 9));
+                            System.err.printf("    CAPAS %d: Can " +
+                                "do extended-length packets\n", (capasI - 9));
                         }
                         init.longPackets = true;
                     }
@@ -380,7 +381,9 @@ class SendInitPacket extends Packet {
                 init.MAXLX1 = 500 / 95;
                 init.MAXLX2 = 500 % 95;
             }
-            if (((init.MAXLX1 * 95) + init.MAXLX2) > KermitInit.DEFAULT_BLOCK_SIZE) {
+            if (((init.MAXLX1 * 95) + init.MAXLX2) >
+                KermitInit.DEFAULT_BLOCK_SIZE) {
+
                 init.MAXLX1 = KermitInit.DEFAULT_BLOCK_SIZE / 95;
                 init.MAXLX2 = KermitInit.DEFAULT_BLOCK_SIZE % 95;
             }

@@ -35,7 +35,7 @@ import java.util.LinkedList;
 import jermit.protocol.FileInfo;
 import jermit.protocol.SerialFileTransferSession;
 import jermit.protocol.kermit.KermitReceiver;
-// import jermit.protocol.kermit.KermitSender;
+import jermit.protocol.kermit.KermitSender;
 import jermit.protocol.xmodem.XmodemReceiver;
 import jermit.protocol.xmodem.XmodemSender;
 import jermit.protocol.ymodem.YmodemReceiver;
@@ -72,7 +72,7 @@ public class QodemUI implements Runnable {
     YmodemSender ymodemSender;
     YmodemReceiver ymodemReceiver;
     KermitReceiver kermitReceiver;
-    // KermitSender kermitSender;
+    KermitSender kermitSender;
 
     /**
      * Input events are processed by this Terminal.
@@ -263,11 +263,9 @@ public class QodemUI implements Runnable {
                     if (kermitReceiver != null) {
                         kermitReceiver.cancelTransfer(true);
                     }
-                    /*
                     if (kermitSender != null) {
                         kermitSender.cancelTransfer(true);
                     }
-                    */
                 }
             }
         }

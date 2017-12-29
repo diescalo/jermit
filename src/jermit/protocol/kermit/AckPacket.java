@@ -50,18 +50,8 @@ class AckPacket extends Packet {
      * @param checkType checksum type
      * @param seq sequence number of the packet
      */
-    public AckPacket(final byte checkType, final byte seq) {
-        super(Type.ACK, (byte) 'Y', "ACK Acknowledge", checkType, seq);
-    }
-
-    /**
-     * Public constructor.
-     *
-     * @param checkType checksum type
-     * @param seq sequence number of the packet
-     */
     public AckPacket(final byte checkType, final int seq) {
-        this(checkType, (byte) seq);
+        super(Type.ACK, (byte) 'Y', "ACK Acknowledge", checkType, seq);
     }
 
     /**

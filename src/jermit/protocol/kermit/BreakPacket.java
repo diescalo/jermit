@@ -43,7 +43,7 @@ class BreakPacket extends Packet {
      * @param checkType checksum type
      * @param seq sequence number of the packet
      */
-    public BreakPacket(final byte checkType, final byte seq) {
+    public BreakPacket(final byte checkType, final int seq) {
 	super(Type.BREAK, (byte) 'B', "EOT Break Transmission", checkType, seq);
     }
 

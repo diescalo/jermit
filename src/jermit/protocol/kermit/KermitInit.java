@@ -250,6 +250,12 @@ final class KermitInit {
      * Set to reasonable modern defaults.
      */
     public void reset() {
+        if (System.getProperty("jermit.kermit.streaming",
+                "false").equals("true")
+        ) {
+            supportStreaming = true;
+        }
+
         textMode = false;
         checkType = 1;
         MARK = 0x01;    // SOH

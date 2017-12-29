@@ -111,9 +111,23 @@ public interface LocalFileInterface {
         boolean worldExecutable);
 
     /**
+     * Get the protection as a mask of POSIX-like attributes.
+     *
+     * @return the POSIX-like protection attributes
+     */
+    public int getProtection();
+
+    /**
      * Delete this thing.  Note that implementations may choose to ignore
      * this.
      */
     public void delete();
+
+    /**
+     * Heuristic check to see if this thing is text-only (ASCII).
+     *
+     * @return true if the file appears to be ASCII text only
+     */
+    public boolean isText();
 
 }

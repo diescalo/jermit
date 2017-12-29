@@ -50,6 +50,11 @@ class FileDataPacket extends Packet {
      */
     public long position;
 
+    /**
+     * If true, this file is at EOF.
+     */
+    public boolean eof = false;
+
     // ------------------------------------------------------------------------
     // Constructors -----------------------------------------------------------
     // ------------------------------------------------------------------------
@@ -60,7 +65,7 @@ class FileDataPacket extends Packet {
      * @param checkType checksum type
      * @param seq sequence number of the packet
      */
-    public FileDataPacket(final byte checkType, final byte seq) {
+    public FileDataPacket(final byte checkType, final int seq) {
         this(checkType, null, -1, seq);
     }
 
@@ -73,7 +78,7 @@ class FileDataPacket extends Packet {
      * @param seq sequence number of the packet
      */
     public FileDataPacket(final byte checkType, final InputStream input,
-        final long position, final byte seq) {
+        final long position, final int seq) {
 
         super(Type.FILE, (byte) 'D', "File Data", checkType, seq);
 
@@ -127,6 +132,7 @@ class FileDataPacket extends Packet {
                 if (DEBUG) {
                     System.err.println("      - EOF -");
                 }
+                eof = true;
                 throw new IndexOutOfBoundsException("File has reached EOF");
             }
             // We read a byte

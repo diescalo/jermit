@@ -46,7 +46,7 @@ class NakPacket extends Packet {
      * @param parseState reason this NAK was generated
      * @param seq sequence number of the packet this NAK is in response to
      */
-    public NakPacket(final ParseState parseState, final byte seq) {
+    public NakPacket(final ParseState parseState, final int seq) {
         super(Type.NAK, (byte) 'N', "NAK Negative Acknowledge", (byte) 1, seq);
         this.parseState = parseState;
     }
@@ -56,17 +56,8 @@ class NakPacket extends Packet {
      *
      * @param seq sequence number of the packet this NAK is in response to
      */
-    public NakPacket(final byte seq) {
-        this(ParseState.OK, seq);
-    }
-
-    /**
-     * Public constructor.
-     *
-     * @param seq sequence number of the packet this NAK is in response to
-     */
     public NakPacket(final int seq) {
-        this(ParseState.OK, (byte) seq);
+        this(ParseState.OK, seq);
     }
 
     // ------------------------------------------------------------------------

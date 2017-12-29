@@ -287,7 +287,7 @@ abstract class Packet {
      * @param seq sequence number of the packet
      */
     protected Packet(final Type type, final byte wireCharacter,
-        final String description, final byte checkType, final byte seq) {
+        final String description, final byte checkType, final int seq) {
 
         assert (type != Type.STATE_ANY);
 
@@ -295,22 +295,13 @@ abstract class Packet {
         this.wireCharacter      = wireCharacter;
         this.description        = description;
         this.checkType          = checkType;
-        this.seq                = (byte) (seq % 64);
-    }
 
-    /**
-     * Protected constructor used by subclasses.
-     *
-     * @param type packet type
-     * @param wireCharacter wire character for this packet type
-     * @param description description of packet
-     * @param checkType checksum type
-     * @param seq sequence number of the packet
-     */
-    protected Packet(final Type type, final byte wireCharacter,
-        final String description, final byte checkType, final int seq) {
-
-        this(type, wireCharacter, description, checkType, (byte) seq);
+        assert (seq >= 0);
+        if (seq >= 64) {
+            this.seq            = (byte) (seq % 64);
+        } else {
+            this.seq            = (byte) seq;
+        }
     }
 
     // ------------------------------------------------------------------------
@@ -627,16 +618,12 @@ abstract class Packet {
      */
     private byte [] encodeToWire(final TransferParameters transferParameters) {
 
-        if (DEBUG) {
-            System.err.printf("encode() %s %s %d\n", type, description,
-                (data == null ? 0 : data.length));
-        }
-
         // Have the subclass create the raw unencoded data field bytes.
         writeToData();
 
-        if (data == null) {
-            return new byte[0];
+        if (DEBUG) {
+            System.err.printf("encodeToWire() %s %s %d\n", type, description,
+                (data == null ? 0 : data.length));
         }
 
         byte ch;
@@ -764,7 +751,8 @@ abstract class Packet {
         }
 
         if (DEBUG) {
-            System.err.printf("encode() output = %d bytes\n", output.size());
+            System.err.printf("encodeToWire() output = %d bytes\n",
+                output.size());
         }
         return output.toByteArray();
     }
@@ -825,7 +813,7 @@ abstract class Packet {
         // TYPE
         output.write(wireCharacter);
 
-        if ((active.longPackets == true) && (longPacket == true)) {
+        if ((active.longPackets == true) && (this.longPacket == true)) {
             // We are allowed to use a long packet
             longPacket = true;
             dataCheckDiff = 6;
@@ -837,7 +825,8 @@ abstract class Packet {
         }
         byte [] packetData = wireData;
 
-        int packetLength = packetData.length + dataCheckDiff - 1 + checkTypeLength;
+        int packetLength = packetData.length + dataCheckDiff - 1 +
+                checkTypeLength;
 
         if (longPacket == true) {
             output1 = toChar((byte) 0);
@@ -848,7 +837,8 @@ abstract class Packet {
             byte [] header = output.toByteArray();
             int hcheckComputed = output1 + header[2] + header[3] +
                 header[4] + header[5];
-            hcheckComputed = (hcheckComputed + ((hcheckComputed & 192)/64)) & 63;
+            hcheckComputed = (hcheckComputed +
+                ((hcheckComputed & 192)/64)) & 63;
             output.write(toChar((byte) hcheckComputed));
         } else {
             output1 = toChar((byte) packetLength);
@@ -954,8 +944,9 @@ abstract class Packet {
 
         if (dontEncodeData == true) {
             if (DEBUG) {
-                System.err.printf("decodeData() - dontEncodeData is true, NOP.  wireData.length = %d\n",
-                wireData.length);
+                System.err.printf("decodeData() - dontEncodeData is true, " +
+                    "NOP.  wireData.length = %d\n",
+                    wireData.length);
             }
             return wireData;
         }
@@ -1401,8 +1392,9 @@ abstract class Packet {
         }
 
         if (DEBUG) {
-            System.err.printf("decode(): got packet. LEN %d SEQ %d TYPE %c (%s)\n",
-                checkArray.size(), seq, (char) typeChar, packetType);
+            System.err.printf("decode(): got packet. LEN %d SEQ %d " +
+                "TYPE %c (%s)\n", checkArray.size(), seq,
+                (char) typeChar, packetType);
         }
 
         // Check the checksum
@@ -1523,7 +1515,8 @@ abstract class Packet {
         }
 
         // We have the raw data, save it.
-        byte [] packetData = new byte[rawData.length - dataBegin - checkTypeLength];
+        byte [] packetData = new byte[rawData.length - dataBegin -
+            checkTypeLength];
         System.arraycopy(rawData, dataBegin, packetData, 0, packetData.length);
 
         // Construct a new packet of the right type and type to decode it.
@@ -1632,6 +1625,11 @@ abstract class Packet {
 
         if (DEBUG) {
             System.err.printf("decode(): ALL OK, received %s\n", packet.type);
+
+            if (packet.type == Type.ERROR) {
+                System.err.printf("    ERROR packet text: '%s'\n",
+                    ((ErrorPacket) packet).errorMessage);
+            }
         }
         return packet;
     }

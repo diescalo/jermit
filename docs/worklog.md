@@ -1,3 +1,15 @@
+December 28, 2017
+
+Send is working.  Looks like I might have found a real bug in ckermit
+finally, maybe: a small ASCII transfer (with 'kermit -V -r') doesn't
+seem to save the file to disk.  gkermit works with the same file fine,
+and ckermit does also if I set it to binary in the Attributes packet.
+Streaming is also OK on both send and receive.
+
+I'm going to punt windowing until the IKS release.  More tests to
+cover the basics (resend, Ctrl-C cancel, noisy lines, etc.) and this
+will be a nice Kermit to pause on.
+
 December 27, 2017
 
 Kermit receive is working now.  It is a bit glitchy, but it is there.

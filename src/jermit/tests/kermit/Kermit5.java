@@ -26,22 +26,22 @@
  * @author Kevin Lamonte [kevin.lamonte@gmail.com]
  * @version 1
  */
-package jermit.tests.ymodem;
+package jermit.tests.kermit;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.LinkedList;
 import java.util.List;
 
-import jermit.protocol.ymodem.YmodemSender;
-import jermit.protocol.ymodem.YmodemSession;
+import jermit.protocol.kermit.KermitSender;
+import jermit.protocol.kermit.KermitSession;
 import jermit.tests.SerialTransferTest;
 import jermit.tests.TestFailedException;
 
 /**
- * Test a Ymodem batch upload file transfer.
+ * Test a Kermit batch upload file transfer.
  */
-public class Ymodem4 extends SerialTransferTest implements Runnable {
+public class Kermit5 extends SerialTransferTest implements Runnable {
 
     class FilePair {
         public String name;
@@ -54,7 +54,7 @@ public class Ymodem4 extends SerialTransferTest implements Runnable {
     /**
      * Public constructor.
      */
-    public Ymodem4() {
+    public Kermit5() {
     }
 
     /**
@@ -62,7 +62,7 @@ public class Ymodem4 extends SerialTransferTest implements Runnable {
      */
     @Override
     public void doTest() throws IOException, TestFailedException {
-        System.out.printf("Ymodem4: 4 binary file uploads - Ymodem VANILLA\n");
+        System.out.printf("Kermit5: 4 binary file uploads - ckermit VANILLA\n");
 
         // Process:
         //
@@ -74,7 +74,7 @@ public class Ymodem4 extends SerialTransferTest implements Runnable {
         //      to a temp file.
         //   4. Extract jermit/tests/data/rfc856.txt to a temp file.
         //   5. Spawn 'rb /path/to/temp1' in a temp directory
-        //   6. Spin up YmodemSender to send the files.
+        //   6. Spin up KermitSender to send the files.
         //   7. Read all file pairs and compare contents.
 
         FilePair [] pairs = new FilePair[4];
@@ -82,14 +82,14 @@ public class Ymodem4 extends SerialTransferTest implements Runnable {
             pairs[i] = new FilePair();
         }
         pairs[0].name = "lady-of-shalott.jpg";
-        pairs[1].name = "qm5.zip";
+        pairs[3].name = "qm5.zip";
         pairs[2].name = "William-Adolphe_Bouguereau_(1825-1905)_-_A_Young_Girl_Defending_Herself_Against_Eros_(1880).jpg";
-        pairs[3].name = "rfc856.txt";
+        pairs[1].name = "rfc856.txt";
 
         List<String> files = new LinkedList<String>();
 
         for (int i = 0; i < pairs.length; i++) {
-            File source = File.createTempFile("send-ymodem", "");
+            File source = File.createTempFile("send-kermit", "");
             saveResourceToFile("jermit/tests/data/" + pairs[i].name, source);
             source.deleteOnExit();
             pairs[i].tmpSourceName = source.getName();
@@ -98,7 +98,7 @@ public class Ymodem4 extends SerialTransferTest implements Runnable {
         }
 
         // Create a directory
-        File destinationDirName = File.createTempFile("receive-ymodem", "");
+        File destinationDirName = File.createTempFile("receive-kermit", "");
         String destinationPath = destinationDirName.getPath();
         destinationDirName.delete();
         File destinationDir = new File(destinationPath);
@@ -113,19 +113,27 @@ public class Ymodem4 extends SerialTransferTest implements Runnable {
             pairs[i].tmpDestPath = destination.getPath();
         }
 
-        ProcessBuilder ryb = new ProcessBuilder("rb");
-        // Change rb's working dir to be the temp dir
-        ryb.directory(destinationDir);
-        Process ry = ryb.start();
+        ProcessBuilder kermitPB = new ProcessBuilder("script", "-fqe",
+            "/dev/null", "-c", "kermit -V -r");
+        /*
+        ProcessBuilder kermitPB = new ProcessBuilder("script", "-fqe",
+            "/dev/null", "-c", "gkermit -r -i");
+         */
+        // Change kermit's working dir to be the temp dir
+        kermitPB.directory(destinationDir);
+        Process kermitReceiver = kermitPB.start();
 
-        YmodemSender sy = new YmodemSender(YmodemSession.YFlavor.Y_G,
-            ry.getInputStream(), ry.getOutputStream(), files);
-        sy.run();
+        KermitSender kermitSender = new KermitSender(
+                kermitReceiver.getInputStream(),
+                kermitReceiver.getOutputStream(), files);
 
-        // Wait for ry to finish before comparing files!
+        kermitSender.run();
+
+        // Wait for kermit to finish before comparing files!
         for (;;) {
             try {
-                if (ry.waitFor() == 0) {
+                kermitReceiver.waitFor();
+                if (!kermitReceiver.isAlive()) {
                     break;
                 }
             } catch (InterruptedException e) {
@@ -160,7 +168,7 @@ public class Ymodem4 extends SerialTransferTest implements Runnable {
      */
     public static void main(final String [] args) {
         try {
-            Ymodem4 test = new Ymodem4();
+            Kermit5 test = new Kermit5();
             test.doTest();
         } catch (Throwable t) {
             t.printStackTrace();

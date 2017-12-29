@@ -52,7 +52,7 @@ class EofPacket extends Packet {
      * @param checkType checksum type
      * @param seq sequence number of the packet
      */
-    public EofPacket(final byte checkType, final byte seq) {
+    public EofPacket(final byte checkType, final int seq) {
         super(Type.EOF, (byte) 'Z', "EOF End Of File", checkType, seq);
     }
 

@@ -3,20 +3,15 @@ Jermit TODO List
 
 0.0.3:
 
-  Kermit:
-    KermitSender
-    Windowing
-
   Kermit tests:
     NPAD
     3 Ctrl-C's kill transfer
-    Streaming
     Noisy transfer
     File protection
+    FileAttributes.NewFileAccessMode's
     Skip file - download
     Skip file - upload
     Resume
-
 
 0.0.4:
 
@@ -26,6 +21,7 @@ Jermit TODO List
     ZmodemSender
 
   Kermit:
+    Windowing support
     KermitServerSocket
     KermitServer
 

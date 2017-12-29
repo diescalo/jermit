@@ -104,6 +104,11 @@ public class KermitSession extends SerialFileTransferSession {
      */
     int lastBlockSize = 128;
 
+    /**
+     * The raw bytes of the last packet sent out.
+     */
+    private byte [] lastPacketBytes;
+
     // ------------------------------------------------------------------------
     // Constructors -----------------------------------------------------------
     // ------------------------------------------------------------------------
@@ -424,8 +429,17 @@ public class KermitSession extends SerialFileTransferSession {
      * @throws IOException if a java.io operation throws
      */
     protected void sendPacket(final Packet packet) throws IOException {
-        byte [] packetBytes = packet.encode(transferParameters);
-        output.write(packetBytes);
+        lastPacketBytes = packet.encode(transferParameters);
+        resendLastPacket();
+    }
+
+    /**
+     * Resend the last packet onto the wire again.
+     *
+     * @throws IOException if a java.io operation throws
+     */
+    protected void resendLastPacket() throws IOException {
+        output.write(lastPacketBytes);
         for (int i = 0; i < transferParameters.remote.NPAD; i++) {
             output.write(transferParameters.remote.PADC);
         }
@@ -505,7 +519,9 @@ public class KermitSession extends SerialFileTransferSession {
             if (fileSize >= 0) {
                 setFile.setBytesTotal(fileSize);
                 setFile.setBlocksTotal(file.getBytesTotal() / getBlockSize());
-                if (file.getBlocksTotal() * getBlockSize() < file.getBytesTotal()) {
+                if (file.getBlocksTotal() * getBlockSize() <
+                    file.getBytesTotal()
+                ) {
                     setFile.setBlocksTotal(file.getBlocksTotal() + 1);
                 }
                 bytesTotal = bytesTotal + file.getBytesTotal();

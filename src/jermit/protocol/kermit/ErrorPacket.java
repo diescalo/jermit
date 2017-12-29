@@ -57,23 +57,10 @@ class ErrorPacket extends Packet {
      * @param seq sequence number of the packet
      */
     public ErrorPacket(final byte checkType, final String errorMessage,
-        final byte seq) {
+        final int seq) {
 
         super(Type.ERROR, (byte) 'E', "Error", checkType, seq);
         this.errorMessage = errorMessage;
-    }
-
-    /**
-     * Public constructor.
-     *
-     * @param checkType checksum type
-     * @param errorMessage error message to send to remote side
-     * @param seq sequence number of the packet
-     */
-    public ErrorPacket(final byte checkType, final String errorMessage,
-        final int seq) {
-
-        this(checkType, errorMessage, (byte) seq);
     }
 
     // ------------------------------------------------------------------------

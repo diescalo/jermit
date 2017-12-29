@@ -186,7 +186,7 @@ public class KermitReceiver implements Runnable {
                 session.cancelFlag = 1;
             }
 
-        } // while (session.cancelFlag == 0)
+        } // while ((session.cancelFlag == 0) && (done == false))
 
         // Switch to the next file.
         synchronized (session) {
@@ -215,7 +215,7 @@ public class KermitReceiver implements Runnable {
         if (DEBUG) {
             System.err.println("receiveBegin() sending NAK(0)...");
         }
-        session.sendPacket(new NakPacket((byte) 0));
+        session.sendPacket(new NakPacket(0));
         session.kermitState = KermitState.KM_RW;
         session.setCurrentStatus("SENDING NAK(0)");
     }
@@ -235,7 +235,7 @@ public class KermitReceiver implements Runnable {
             // We had an error.  For this state, we can simply respond with
             // NAK(0).  For other states, we need to NAK the correct sequence
             // number.
-            session.sendPacket(new NakPacket((byte) 0));
+            session.sendPacket(new NakPacket(0));
             session.setCurrentStatus("SENDING NAK(0)");
         } else if (packet instanceof SendInitPacket) {
             // We got the remote side's Send-Init
@@ -278,7 +278,7 @@ public class KermitReceiver implements Runnable {
         Packet packet = session.getPacket();
         if (packet.parseState != Packet.ParseState.OK) {
             // We had an error of some kind.  Respond with a NAK.
-            session.sendPacket(new NakPacket((byte) session.sequenceNumber));
+            session.sendPacket(new NakPacket(session.sequenceNumber));
         } else if (packet instanceof FilePacket) {
             FilePacket filePacket = (FilePacket) packet;
             // Got the remote side's File.
@@ -335,7 +335,7 @@ public class KermitReceiver implements Runnable {
         Packet packet = session.getPacket();
         if (packet.parseState != Packet.ParseState.OK) {
             // We had an error of some kind.  Respond with a NAK.
-            session.sendPacket(new NakPacket((byte) session.sequenceNumber));
+            session.sendPacket(new NakPacket(session.sequenceNumber));
         } else if (packet instanceof FileAttributesPacket) {
             FileAttributesPacket fileAttributes = (FileAttributesPacket) packet;
             // Got the remote side's File-Attributes.  Use this information
@@ -410,7 +410,7 @@ public class KermitReceiver implements Runnable {
         Packet packet = session.getPacket();
         if (packet.parseState != Packet.ParseState.OK) {
             // We had an error of some kind.  Respond with a NAK.
-            session.sendPacket(new NakPacket((byte) session.sequenceNumber));
+            session.sendPacket(new NakPacket(session.sequenceNumber));
         } else if (packet instanceof FileDataPacket) {
             session.setCurrentStatus("DATA");
 
@@ -454,7 +454,7 @@ public class KermitReceiver implements Runnable {
                     file.getLocalFile().setTime(file.getModTime());
                 } catch (IOException e) {
                     if (DEBUG) {
-                        System.err.println("Warning: unable to update file time");
+                        System.err.println("Warning: error updating file time");
                         e.printStackTrace();
                     }
                 }
@@ -492,15 +492,17 @@ public class KermitReceiver implements Runnable {
             synchronized (session) {
                 session.lastBlockSize = data.data.length;
                 setFile.setBlockSize(data.data.length);
-                setFile.setBlocksTransferred(file.getBlocksTransferred() + 1);
                 setFile.setBytesTransferred(file.getBytesTransferred() +
                     data.data.length);
-                session.setBlocksTransferred(session.getBlocksTransferred() +
-                    1);
                 session.setBytesTransferred(session.getBytesTransferred() +
                     data.data.length);
+                setFile.setBlocksTransferred(file.getBytesTransferred() /
+                    session.getBlockSize());
+                session.setBlocksTransferred(session.getBytesTransferred() /
+                    session.getBlockSize());
                 session.setLastBlockMillis(System.currentTimeMillis());
-                setFile.setBlocksTotal(file.getBytesTotal() / file.getBlockSize());
+                setFile.setBlocksTotal(file.getBytesTotal() /
+                    file.getBlockSize());
             }
 
         } catch (IOException e) {

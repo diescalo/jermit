@@ -7,7 +7,8 @@ protocols.  General summary:
   * Xmodem and Ymodem are fully supported.  Flavors include vanilla,
     relaxed, CRC-16, 1K, 1K/G, and G.
 
-  * Kermit is in progress.  Receive works, send is coming soon.
+  * Kermit is supported in both vanilla and streaming modes.  (Full
+    duplex sliding windows are estimated to be in around 1Q 2018.)
 
   * Zmodem is estimated to be in around 3Q 2018.
 

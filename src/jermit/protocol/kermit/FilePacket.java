@@ -59,7 +59,7 @@ class FilePacket extends Packet {
      * @param checkType checksum type
      * @param seq sequence number of the packet
      */
-    public FilePacket(final byte checkType, final byte seq) {
+    public FilePacket(final byte checkType, final int seq) {
         super(Type.FILE, (byte) 'F', "File Header", checkType, seq);
     }
 
@@ -93,6 +93,11 @@ class FilePacket extends Packet {
             }
             if (doLowercase == true) {
                 filename = filename.toLowerCase();
+            }
+
+            if (DEBUG) {
+                System.err.printf("FilePacket.readFromData() filename = %s\n",
+                    filename);
             }
         } catch (UnsupportedEncodingException e) {
             e.printStackTrace();
@@ -146,9 +151,12 @@ class FilePacket extends Packet {
                         newFilename.length() - 1);
                 }
                 filename = newFilename;
-                data = newFilename.getBytes("UTF-8");
-            } else {
-                data = filename.getBytes("UTF-8");
+            }
+            data = filename.getBytes("UTF-8");
+
+            if (DEBUG) {
+                System.err.printf("FilePacket.writeToData() filename = %s\n",
+                    filename);
             }
         } catch (UnsupportedEncodingException e) {
             e.printStackTrace();

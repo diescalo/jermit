@@ -177,11 +177,66 @@ public class LocalFile implements LocalFileInterface {
     }
 
     /**
+     * Get the protection as a mask of POSIX-like attributes.
+     *
+     * @return the POSIX-like protection attributes
+     */
+    public int getProtection() {
+        int mode = 0;
+        if (file.canRead()) {
+            mode |= 0400;
+        }
+        if (file.canWrite()) {
+            mode |= 0200;
+        }
+        if (file.canExecute()) {
+            mode |= 0100;
+        }
+        return mode;
+    }
+
+    /**
      * Delete this thing.  Note that implementations may choose to ignore
      * this.
      */
     public void delete() {
         file.delete();
+    }
+
+    /**
+     * Heuristic check to see if this thing is text-only (ASCII).
+     *
+     * @return true if the file appears to be ASCII text only
+     */
+    public boolean isText() {
+        FileInputStream input = null;
+        try {
+            boolean text = true;
+            input = new FileInputStream(file);
+            for (int i = 0; i < 1024; i++) {
+                int ch = input.read();
+                if (ch == -1) {
+                    break;
+                }
+                if ((ch & 0x80) != 0) {
+                    text = false;
+                    break;
+                }
+            }
+            return text;
+        } catch (IOException e) {
+            e.printStackTrace();
+        } finally {
+            if (input != null) {
+                try {
+                    input.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+        // An error occurred, assume binary.
+        return false;
     }
 
 }

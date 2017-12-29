@@ -73,6 +73,23 @@ Jermit supports the following features of Kermit:
 * (TODO) Non-standard bidirectional file transfer support.
 
 Kermit is the best all-round serial file transfer protocol available.
-It is fast, versatile, and extremely well-designed.  If one must pick
-a serial protocol, they would do well to first prove that Kermit is
-the wrong choice before looking further.
+It is fast, versatile, and has excellent fundamentals.  If one must
+pick a serial protocol, they would do well to first prove that Kermit
+is the wrong choice before looking further.
+
+Kermit's primary obstacle to modern adoption has been its long and
+storied history.  Kermit was the first protocol to accomplish many
+kinds of file transfers, and it was developed before the network
+effect had winnowed down the dozens of unique platforms into the big
+three remaining today (mainframe, POSIX, Windows).  Its standards
+document thus lists IDs for extinct systems, odd things to do with a
+file (e.g. mail it, print it, or even execute it!), and the codepage
+translation system developed afterwards was made irrelevant by
+standardization on UTF-8.
+
+But if one implements just the basics of encoding/decoding for eight
+packet types, they have a reliable data transfer protocol that works
+across serial ports, UDP packets, and TCP streams.  (One can also
+escape any character sequence as needed, e.g. the "~." sequence used
+to terminate ssh links.  Protecting ssh like this is impossible in
+Zmodem.)
