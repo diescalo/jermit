@@ -57,7 +57,7 @@ public class Kermit2 extends SerialTransferTest implements Runnable {
         //
         //   1. Extract jermit/tests/data/lady-of-shalott.jpg to
         //      a temp file.
-        //   2. Spawn 'kermit -V -s /path/to/lady-of-shalott.jpg'
+        //   2. Spawn 'kermit -i -s /path/to/lady-of-shalott.jpg'
         //   3. Spin up KermitReceiver to download to a temp directory.
         //   4. Read both files and compare contents.
 
@@ -77,7 +77,7 @@ public class Kermit2 extends SerialTransferTest implements Runnable {
 
         ProcessBuilder kermitPB = new ProcessBuilder("script", "-fqe",
             "/dev/null", "-c",
-            "kermit" + " -V -s " + source.getPath());
+            "kermit" + " -i -s " + source.getPath());
         Process kermitSender = kermitPB.start();
 
         // Allow overwrite of destination file, because we just created it.

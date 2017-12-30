@@ -48,7 +48,7 @@ public class NoisyOutputStream extends OutputStream {
      * be in the range of 1,000 to 10,000,000.
      */
     private int noiseLevel = 10000;
-    
+
     /**
      * Public constructor, at the default noise rate of 10,000.
      *
@@ -85,13 +85,13 @@ public class NoisyOutputStream extends OutputStream {
         if ((int) (noiseLevel * Math.random()) == noiseLevel / 2) {
             /*
              * This is it!  We now have three choices:
-             * 
+             *
              *   1. Perform a write() but with something random, i.e. corrupt
              *      the stream.
-             *   
+             *
              *   2. write() this byte and another random byte, i.e.  insert a
              *      junk byte.
-             *      
+             *
              *   3. Don't perform this write(), i.e. delete a byte.
              *
              * We will pick our poison with two rolls of the dice.

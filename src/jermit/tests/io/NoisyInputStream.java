@@ -48,7 +48,7 @@ public class NoisyInputStream extends InputStream {
      * be in the range of 1,000 to 10,000,000.
      */
     private int noiseLevel = 10000;
-    
+
     /**
      * Public constructor, at the default noise rate of 10,000.
      *
@@ -86,13 +86,13 @@ public class NoisyInputStream extends InputStream {
         if ((int) (noiseLevel * Math.random()) == noiseLevel / 2) {
             /*
              * This is it!  We now have three choices:
-             * 
+             *
              *   1. Perform a read() but return something random,
              *      i.e. corrupt the stream.
-             *   
+             *
              *   2. Return something random and don't perform a read(), i.e.
              *      insert a junk byte.
-             *      
+             *
              *   3. Perform two reads() and return either one of them,
              *      i.e. delete a byte.
              *

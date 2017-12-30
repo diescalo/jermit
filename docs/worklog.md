@@ -1,3 +1,14 @@
+December 29, 2017
+
+Covering more of the edge cases.  Most of the system properties to
+control options are working OK.  Noisy transfers though are turning
+out to be a real pain.  I might end up having to backport some stuff
+to Qodem afterall, as these tests are a lot noisier than those were.
+The packet type byte can get corrupted, that had to be checked.  NAKs
+were pulling the wrong checkType (transliteration error from the D
+code).  But it also looks like ckermit bails out too quickly for these
+tests with "Too many retries".
+
 December 28, 2017
 
 Send is working.  Looks like I might have found a real bug in ckermit

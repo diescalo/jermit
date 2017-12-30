@@ -70,7 +70,7 @@ public class Kermit3 extends SerialTransferTest implements Runnable {
         //   3. Extract jermit/tests/data/William-Adolphe_Bouguereau_(1825-1905)_-_A_Young_Girl_Defending_Herself_Against_Eros_(1880).jpg
         //      to a temp file.
         //   4. Extract jermit/tests/data/rfc856.txt to a temp file.
-        //   5. Spawn 'kermit -V -s /path/to/temp1 /path/to/temp2 ...'
+        //   5. Spawn 'kermit -i -s /path/to/temp1 /path/to/temp2 ...'
         //   6. Spin up KermitReceiver to download to a temp directory.
         //   7. Read all file pairs and compare contents.
 
@@ -109,7 +109,7 @@ public class Kermit3 extends SerialTransferTest implements Runnable {
 
         ProcessBuilder kermitPB = new ProcessBuilder("script", "-fqe",
             "/dev/null", "-c",
-            "kermit" + " -V -s " + 
+            "kermit" + " -i -s " +
             pairs[0].tmpSourcePath + " " +
             pairs[1].tmpSourcePath + " " +
             pairs[2].tmpSourcePath + " " +

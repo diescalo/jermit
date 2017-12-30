@@ -47,7 +47,7 @@ public class YmodemReceiver extends XmodemReceiver implements Runnable {
     // ------------------------------------------------------------------------
 
     // If true, enable some debugging output.
-    private static final boolean DEBUG = false;
+    private static final boolean DEBUG = YmodemSession.DEBUG;
 
     // ------------------------------------------------------------------------
     // Constructors -----------------------------------------------------------

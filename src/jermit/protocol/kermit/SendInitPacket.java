@@ -43,7 +43,7 @@ class SendInitPacket extends Packet {
     // ------------------------------------------------------------------------
 
     // If true, enable some debugging output.
-    private static final boolean DEBUG = false;
+    private static final boolean DEBUG = KermitSession.DEBUG;
 
     /**
      * The parameters that this SendInitPacket needs to encode.

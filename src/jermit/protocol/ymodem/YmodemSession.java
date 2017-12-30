@@ -55,8 +55,8 @@ public class YmodemSession extends XmodemSession {
     // Variables --------------------------------------------------------------
     // ------------------------------------------------------------------------
 
-    // If true, enable some debugging output.
-    private static final boolean DEBUG = false;
+    // If true, enable some debugging output.  Note package private access.
+    static final boolean DEBUG = false;
 
     /**
      * Ymodem supports two variants.  These constants can be used to select

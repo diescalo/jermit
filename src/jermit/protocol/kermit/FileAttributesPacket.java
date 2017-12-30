@@ -361,12 +361,16 @@ class FileAttributesPacket extends Packet {
                 // Protection in receiver format
                 // It will be in octal
                 fileProtection = 0;
-                for (int j = 0; i < buffer.length(); j++) {
+                for (int j = 0; j < buffer.length(); j++) {
                     fileProtection *= 8;
-                    fileProtection += (buffer.charAt(j) - '0');
+                    fileProtection += (int) buffer.charAt(j) - 0x30;
+                    if (DEBUG) {
+                        System.err.printf("     %c %d %o\n", buffer.charAt(j),
+                            fileProtection, fileProtection);
+                    }
                 }
                 if (DEBUG) {
-                    System.err.printf("   protection %d %o\n",
+                    System.err.printf("   protection %s %d %o\n", buffer,
                         fileProtection, fileProtection);
                 }
                 break;
@@ -580,13 +584,13 @@ class FileAttributesPacket extends Packet {
         // Protection - kermit, only look at bottom 3 bits
         // TODO: windows support
         byte kermitProtection = 0;
-        if ((fileProtection & 0x01) != 0) {
+        if ((fileProtection & 0100) != 0) {
             kermitProtection |= 0x04;
         }
-        if ((fileProtection & 0x02) != 0) {
+        if ((fileProtection & 0200) != 0) {
             kermitProtection |= 0x02;
         }
-        if ((fileProtection & 0x04) != 0) {
+        if ((fileProtection & 0400) != 0) {
             kermitProtection |= 0x01;
         }
         if (DEBUG) {
@@ -600,7 +604,7 @@ class FileAttributesPacket extends Packet {
         // Resend capability
         if (doResend == true) {
             if (DEBUG) {
-                System.err.println("writeToData() - RESEND\n");
+                System.err.println("writeToData() - RESEND");
             }
             output.write('+');
             output.write(toChar((byte) 1));

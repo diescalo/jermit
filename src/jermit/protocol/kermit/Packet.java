@@ -46,7 +46,7 @@ abstract class Packet {
     // ------------------------------------------------------------------------
 
     // If true, enable some debugging output.
-    protected static final boolean DEBUG = false;
+    protected static final boolean DEBUG = KermitSession.DEBUG;
 
     /**
      * Carriage return constant.
@@ -351,8 +351,10 @@ abstract class Packet {
      *
      * @param typeChar the character sent/to the wire
      * @return the packet type
+     * @throws KermitProtocolException if the packet type is invalid
      */
-    public static Type getPacketType(final byte typeChar) {
+    public static Type getPacketType(final byte typeChar) throws KermitProtocolException {
+
         switch (typeChar) {
         case 'S':
             return Type.SINIT;
@@ -389,8 +391,8 @@ abstract class Packet {
         case 'Q':
             return Type.RESERVED2;
         default:
-            // Catch-all: protocol error
-            return Type.ERROR;
+            // Protocol error
+            throw new KermitProtocolException("Invalid type: " + typeChar);
         }
     }
 
@@ -824,9 +826,12 @@ abstract class Packet {
         output.write(wireCharacter);
 
         if ((active.longPackets == true) && (this.longPacket == true)) {
-            // We are allowed to use a long packet
+            // We are allowed to use a long packet.
             longPacket = true;
             dataCheckDiff = 6;
+        } else {
+            // We are not permitted to be long packet.
+            this.longPacket = false;
         }
 
         // Encode the data field
@@ -1325,6 +1330,10 @@ abstract class Packet {
 
         // LEN
         int len = unChar((byte) readCheckCtrlC(input));
+        if (len < 0) {
+            // I fucking hate not having unsigned bytes in Java.
+            len += 256;
+        }
         if (DEBUG) {
             System.err.printf("LEN: %c %02x %d\n", (char) len, len, len);
         }
@@ -1433,13 +1442,13 @@ abstract class Packet {
         readCheckCtrlC(bulkRead, input);
         if (DEBUG) {
             for (int i = 0; i < bulkRead.length; i++) {
-                System.err.printf(" %02x", (byte) ch);
+                System.err.printf(" %02x", bulkRead[i]);
             }
             System.err.println();
         }
         checkArray.write(bulkRead);
         len = 0;
-        
+
         /*
         while (len > 0) {
             ch = readCheckCtrlC(input);
@@ -1453,21 +1462,32 @@ abstract class Packet {
             System.err.println();
         }
         */
-        Type packetType = getPacketType(typeChar);
 
-        switch (packetType) {
-        case SINIT:
-            checkType = 1;
-            break;
-        case NAK:
-            checkType = (byte) len;
-            if ((checkType < 1) || (checkType > 3)) {
+        Type packetType = Type.ERROR;
+        try {
+            packetType = getPacketType(typeChar);
+            switch (packetType) {
+            case SINIT:
                 checkType = 1;
+                break;
+            case NAK:
+                checkType = (byte) bulkRead.length;
+                if ((checkType < 1) || (checkType > 3)) {
+                    checkType = 1;
+                }
+                break;
+            default:
+                checkType = active.checkType;
+                break;
             }
-            break;
-        default:
-            checkType = active.checkType;
-            break;
+        } catch (KermitProtocolException e) {
+            if (DEBUG) {
+                e.printStackTrace();
+                System.err.printf("decode(): INVALID PACKET TYPE %s\n",
+                    Byte.toString(typeChar));
+            }
+            // Bad TYPE field
+            return new NakPacket(ParseState.PROTO_TYPE, (byte) 0);
         }
 
         if (checkType != 12) {
@@ -1478,8 +1498,8 @@ abstract class Packet {
 
         if (DEBUG) {
             System.err.printf("decode(): got packet. LEN %d SEQ %d " +
-                "TYPE %c (%s)\n", checkArray.size(), seq,
-                (char) typeChar, packetType);
+                "TYPE %s (%s)\n", checkArray.size(), seq,
+                Byte.toString(typeChar), packetType);
         }
 
         // Check the checksum
@@ -1491,8 +1511,8 @@ abstract class Packet {
             if (DEBUG) {
                 System.err.printf("decode(): type 1 checksum: %c (%02x)\n",
                     (char) checksum, checksum);
-                System.err.printf("decode():           given: %c (%02x)\n",
-                    (char) rawData[rawData.length - 1],
+                System.err.printf("decode():           given: %s (%02x)\n",
+                    Byte.toString(rawData[rawData.length - 1]),
                     rawData[rawData.length - 1]);
             }
 
@@ -1516,9 +1536,9 @@ abstract class Packet {
                     (char) (toChar((byte) ((checksum2 >> 6) & 0x3F))),
                     (char) (toChar((byte) (checksum2 & 0x3F))),
                     checksum2);
-                System.err.printf("decode():           given: %c %c (%04x)\n",
-                    rawData[rawData.length - 2],
-                    rawData[rawData.length - 1],
+                System.err.printf("decode():           given: %s %s (%04x)\n",
+                    Byte.toString(rawData[rawData.length - 2]),
+                    Byte.toString(rawData[rawData.length - 1]),
                     ((unChar(rawData[rawData.length - 2]) << 6) |
                         unChar(rawData[rawData.length - 1])));
             }
@@ -1545,9 +1565,9 @@ abstract class Packet {
                     (char) (toChar((byte) (((checksum2 >> 6) & 0x3F) + 1))),
                     (char) (toChar((byte) ((checksum2 & 0x3F) + 1))),
                     checksum2);
-                System.err.printf("decode():           given: %c %c (%04x)\n",
-                    rawData[rawData.length - 2],
-                    rawData[rawData.length - 1],
+                System.err.printf("decode():           given: %s %s (%04x)\n",
+                    Byte.toString(rawData[rawData.length - 2]),
+                    Byte.toString(rawData[rawData.length - 1]),
                     (((unChar(rawData[rawData.length - 2]) - 1) << 6) |
                         (unChar(rawData[rawData.length - 1]) - 1)));
             }
@@ -1576,10 +1596,10 @@ abstract class Packet {
                     (char) (toChar((byte) ((crc >> 6) & 0x3F))),
                     (char) (toChar((byte) (crc & 0x3F))),
                     crc);
-                System.err.printf("decode():       given: %c %c %c (%04x)\n",
-                    rawData[rawData.length - 3],
-                    rawData[rawData.length - 2],
-                    rawData[rawData.length - 1],
+                System.err.printf("decode():       given: %s %s %s (%04x)\n",
+                    Byte.toString(rawData[rawData.length - 3]),
+                    Byte.toString(rawData[rawData.length - 2]),
+                    Byte.toString(rawData[rawData.length - 1]),
                     ((unChar(rawData[rawData.length - 3]) << 12) |
                         (unChar(rawData[rawData.length - 2]) << 6) |
                         unChar(rawData[rawData.length - 1])));

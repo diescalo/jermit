@@ -48,7 +48,7 @@ public class KermitReceiver implements Runnable {
     // ------------------------------------------------------------------------
 
     // If true, enable some debugging output.
-    private static final boolean DEBUG = false;
+    private static final boolean DEBUG = KermitSession.DEBUG;
 
     /**
      * The Kermit session state.
@@ -75,6 +75,11 @@ public class KermitReceiver implements Runnable {
      * The current file being downloaded properties setter.
      */
     private FileInfoModifier setFile = null;
+
+    /**
+     * The attributes received for the current file being downloaded.
+     */
+    private FileAttributesPacket attributes = null;
 
     // ------------------------------------------------------------------------
     // Constructors -----------------------------------------------------------
@@ -160,8 +165,8 @@ public class KermitReceiver implements Runnable {
                     break;
 
                 default:
-                    // TODO: red flag a programming error
-                    break;
+                    throw new IllegalArgumentException("Internal error: " +
+                        "unknown state " + session.kermitState);
 
                 } // switch (session.kermitState)
 
@@ -221,7 +226,7 @@ public class KermitReceiver implements Runnable {
         if (DEBUG) {
             System.err.println("receiveBegin() sending NAK(0)...");
         }
-        session.sendPacket(new NakPacket(0));
+        session.sendNak(0);
         session.kermitState = KermitState.KM_RW;
         session.setCurrentStatus("SENDING NAK(0)");
     }
@@ -245,7 +250,7 @@ public class KermitReceiver implements Runnable {
             // We had an error.  For this state, we can simply respond with
             // NAK(0).  For other states, we need to NAK the correct sequence
             // number.
-            session.sendPacket(new NakPacket(0));
+            session.sendNak(0);
             session.setCurrentStatus("SENDING NAK(0)");
         } else if (packet instanceof SendInitPacket) {
             // We got the remote side's Send-Init
@@ -289,10 +294,15 @@ public class KermitReceiver implements Runnable {
             System.err.println("receiveFile() waiting for File...");
         }
 
+        assert (attributes == null);
+        assert (file == null);
+        assert (setFile == null);
+        assert (fileOutput == null);
+
         Packet packet = session.getPacket();
         if (packet.parseState != Packet.ParseState.OK) {
             // We had an error of some kind.  Respond with a NAK.
-            session.sendPacket(new NakPacket(session.sequenceNumber));
+            session.sendNak(session.sequenceNumber);
         } else if (packet instanceof FilePacket) {
             FilePacket filePacket = (FilePacket) packet;
             // Got the remote side's File.
@@ -320,7 +330,6 @@ public class KermitReceiver implements Runnable {
 
             // Transfer has ended
             synchronized (session) {
-                setFile.setEndTime(System.currentTimeMillis());
                 session.addInfoMessage("SUCCESS");
                 session.setState(SerialFileTransferSession.State.FILE_DONE);
             }
@@ -352,9 +361,9 @@ public class KermitReceiver implements Runnable {
         Packet packet = session.getPacket();
         if (packet.parseState != Packet.ParseState.OK) {
             // We had an error of some kind.  Respond with a NAK.
-            session.sendPacket(new NakPacket(session.sequenceNumber));
+            session.sendNak(session.sequenceNumber);
         } else if (packet instanceof FileAttributesPacket) {
-            FileAttributesPacket fileAttributes = (FileAttributesPacket) packet;
+            attributes = (FileAttributesPacket) packet;
             // Got the remote side's File-Attributes.  Use this information
             // to open the file.
             session.setCurrentStatus("ATTRIBUTES");
@@ -362,11 +371,11 @@ public class KermitReceiver implements Runnable {
                 System.err.println("Got attributes packet");
             }
 
-            if (fileAttributes.filename == null) {
-                fileAttributes.filename = downloadFilename;
+            if (attributes.filename == null) {
+                attributes.filename = downloadFilename;
             }
-            session.openDownloadFile(fileAttributes.filename,
-                fileAttributes.fileModTime, fileAttributes.fileSize);
+            session.openDownloadFile(attributes.filename,
+                attributes.fileModTime, attributes.fileSize);
             synchronized (session) {
                 file = session.getCurrentFile();
                 setFile = session.getCurrentFileInfoModifier();
@@ -431,7 +440,7 @@ public class KermitReceiver implements Runnable {
         Packet packet = session.getPacket();
         if (packet.parseState != Packet.ParseState.OK) {
             // We had an error of some kind.  Respond with a NAK.
-            session.sendPacket(new NakPacket(session.sequenceNumber));
+            session.sendNak(session.sequenceNumber);
         } else if (packet instanceof FileDataPacket) {
             session.setCurrentStatus("DATA");
 
@@ -455,6 +464,10 @@ public class KermitReceiver implements Runnable {
             // ACK it
             session.sendAck(packet.seq);
             session.sequenceNumber++;
+
+            synchronized (session) {
+                setFile.setEndTime(System.currentTimeMillis());
+            }
 
             try {
                 fileOutput.close();
@@ -481,7 +494,40 @@ public class KermitReceiver implements Runnable {
                 }
             }
 
-            // TODO: set file protection
+            // If protection was specified in the attributes packet, use it.
+            if ((attributes != null)
+                && (attributes.fileProtection != 0xFFFF)
+            ) {
+                if (DEBUG) {
+                    System.err.println("Set file protection:");
+                    System.err.printf("    owner read %s\n",
+                        ((attributes.fileProtection & 0400) != 0));
+                    System.err.printf("    owner write %s\n",
+                        ((attributes.fileProtection & 0200) != 0));
+                    System.err.printf("    owner exec %s\n",
+                        ((attributes.fileProtection & 0100) != 0));
+                    System.err.printf("    world read %s\n",
+                        ((attributes.fileProtection & 0040) != 0));
+                    System.err.printf("    world write %s\n",
+                        ((attributes.fileProtection & 0020) != 0));
+                    System.err.printf("    world exec %s\n",
+                        ((attributes.fileProtection & 0010) != 0));
+                }
+
+                file.getLocalFile().setProtection(
+                    ((attributes.fileProtection & 0400) != 0),
+                    ((attributes.fileProtection & 0200) != 0),
+                    ((attributes.fileProtection & 0100) != 0),
+                    ((attributes.fileProtection & 0040) != 0),
+                    ((attributes.fileProtection & 0020) != 0),
+                    ((attributes.fileProtection & 0010) != 0));
+            }
+
+            // Reset for a new file.
+            attributes = null;
+            file = null;
+            setFile = null;
+            fileOutput = null;
 
             // Move to the next state
             session.kermitState = KermitState.KM_RF;

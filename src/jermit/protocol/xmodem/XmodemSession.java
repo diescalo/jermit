@@ -55,8 +55,8 @@ public class XmodemSession extends SerialFileTransferSession {
     // Variables --------------------------------------------------------------
     // ------------------------------------------------------------------------
 
-    // If true, enable some debugging output.
-    private static final boolean DEBUG = false;
+    // If true, enable some debugging output.  Note package private access.
+    static final boolean DEBUG = false;
 
     /**
      * The NAK byte used to request a packet repeat.

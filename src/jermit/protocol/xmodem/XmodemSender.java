@@ -50,7 +50,7 @@ public class XmodemSender implements Runnable {
     // ------------------------------------------------------------------------
 
     // If true, enable some debugging output.
-    private static final boolean DEBUG = false;
+    private static final boolean DEBUG = XmodemSession.DEBUG;
 
     /**
      * The Xmodem session state.

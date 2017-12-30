@@ -136,7 +136,7 @@ class FilePacket extends Packet {
                     }
                 }
                 if (lastPeriod != -1) {
-                    newFilename = newFilename.substring(0, lastPeriod) + '_' +
+                    newFilename = newFilename.substring(0, lastPeriod) + '.' +
                         newFilename.substring(lastPeriod + 1);
                 }
                 while ((newFilename.length() > 0)

@@ -34,16 +34,26 @@ import java.io.IOException;
 import jermit.protocol.kermit.KermitReceiver;
 import jermit.tests.SerialTransferTest;
 import jermit.tests.TestFailedException;
+import jermit.tests.io.NoisyInputStream;
+import jermit.tests.io.NoisyOutputStream;
 
 /**
  * Test a basic Kermit file transfer.
  */
-public class Kermit1 extends SerialTransferTest implements Runnable {
+public class Kermit8 extends SerialTransferTest implements Runnable {
+
+    class FilePair {
+        public String name;
+        public String tmpSourceName;
+        public String tmpSourcePath;
+        public String tmpDestName;
+        public String tmpDestPath;
+    }
 
     /**
      * Public constructor.
      */
-    public Kermit1() {
+    public Kermit8() {
     }
 
     /**
@@ -51,19 +61,37 @@ public class Kermit1 extends SerialTransferTest implements Runnable {
      */
     @Override
     public void doTest() throws IOException, TestFailedException {
-        System.out.printf("Kermit1: basic ASCII file download\n");
+        System.out.printf("Kermit8: 4 binary file downloads NOISY\n");
 
         // Process:
         //
-        //   1. Extract jermit/tests/data/ALICE26A_NO_EOT.TXT to
+        //   1. Extract jermit/tests/data/lady-of-shalott.jpg to
         //      a temp file.
-        //   2. Spawn 'kermit -i -s /path/to/ALICE26A_NO_EOT.TXT'
-        //   3. Spin up KermitReceiver to download to a temp file.
-        //   4. Read both files and compare contents.
+        //   2. Extract jermit/tests/data/qm5.zip to
+        //      a temp file.
+        //   3. Extract jermit/tests/data/William-Adolphe_Bouguereau_(1825-1905)_-_A_Young_Girl_Defending_Herself_Against_Eros_(1880).jpg
+        //      to a temp file.
+        //   4. Extract jermit/tests/data/rfc856.txt to a temp file.
+        //   5. Spawn 'kermit -i -s /path/to/temp1 /path/to/temp2 ...'
+        //   6. Spin up KermitReceiver to download to a temp directory.
+        //   7. Read all file pairs and compare contents.
 
-        File source = File.createTempFile("send-kermitttttt", ".txt");
-        saveResourceToFile("jermit/tests/data/ALICE26A_NO_EOT.TXT", source);
-        source.deleteOnExit();
+        FilePair [] pairs = new FilePair[4];
+        for (int i = 0; i < pairs.length; i++) {
+            pairs[i] = new FilePair();
+        }
+        pairs[0].name = "lady-of-shalott.jpg";
+        pairs[1].name = "qm5.zip";
+        pairs[2].name = "William-Adolphe_Bouguereau_(1825-1905)_-_A_Young_Girl_Defending_Herself_Against_Eros_(1880).jpg";
+        pairs[3].name = "rfc856.txt";
+
+        for (int i = 0; i < pairs.length; i++) {
+            File source = File.createTempFile("send-kermit", "");
+            saveResourceToFile("jermit/tests/data/" + pairs[i].name, source);
+            source.deleteOnExit();
+            pairs[i].tmpSourceName = source.getName();
+            pairs[i].tmpSourcePath = source.getPath();
+        }
 
         // Create a directory
         File destinationDirName = File.createTempFile("receive-kermit", "");
@@ -72,24 +100,37 @@ public class Kermit1 extends SerialTransferTest implements Runnable {
         File destinationDir = new File(destinationPath);
         destinationDir.mkdir();
         destinationDir.deleteOnExit();
-        File destination = new File(destinationPath, source.getName());
-        destination.deleteOnExit();
+
+        for (int i = 0; i < pairs.length; i++) {
+            File destination = new File(destinationPath,
+                pairs[i].tmpSourceName);
+            destination.deleteOnExit();
+            pairs[i].tmpDestName = destination.getName();
+            pairs[i].tmpDestPath = destination.getPath();
+        }
 
         ProcessBuilder kermitPB = new ProcessBuilder("script", "-fqe",
             "/dev/null", "-c",
-            "kermit" + " -i -s " + source.getPath());
+            "kermit" + " -i -s " +
+            pairs[0].tmpSourcePath + " " +
+            pairs[1].tmpSourcePath + " " +
+            pairs[2].tmpSourcePath + " " +
+            pairs[3].tmpSourcePath);
         Process kermitSender = kermitPB.start();
 
         // Allow overwrite of destination file, because we just created it.
         KermitReceiver kermitReceiver = new KermitReceiver(
-                kermitSender.getInputStream(), kermitSender.getOutputStream(),
-                destinationPath, true);
+        new NoisyInputStream(kermitSender.getInputStream(), 50000),
+        new NoisyOutputStream(kermitSender.getOutputStream(), 50000),
+                destinationPath, false);
 
         kermitReceiver.run();
-        if (!compareFiles(source, destination)) {
-            throw new TestFailedException("Files are not the same");
+        for (int i = 0; i < pairs.length; i++) {
+            if (!compareFiles(pairs[i].tmpSourcePath, pairs[i].tmpDestPath)) {
+                throw new TestFailedException(pairs[i].name +
+                    ": Files are not the same");
+            }
         }
-
     }
 
     /**
@@ -110,7 +151,7 @@ public class Kermit1 extends SerialTransferTest implements Runnable {
      */
     public static void main(final String [] args) {
         try {
-            Kermit1 test = new Kermit1();
+            Kermit8 test = new Kermit8();
             test.doTest();
         } catch (Throwable t) {
             t.printStackTrace();

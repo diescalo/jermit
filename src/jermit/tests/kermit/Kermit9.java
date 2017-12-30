@@ -36,11 +36,13 @@ import java.util.List;
 import jermit.protocol.kermit.KermitSender;
 import jermit.tests.SerialTransferTest;
 import jermit.tests.TestFailedException;
+import jermit.tests.io.NoisyInputStream;
+import jermit.tests.io.NoisyOutputStream;
 
 /**
  * Test a Kermit batch upload file transfer.
  */
-public class Kermit6 extends SerialTransferTest implements Runnable {
+public class Kermit9 extends SerialTransferTest implements Runnable {
 
     class FilePair {
         public String name;
@@ -53,7 +55,7 @@ public class Kermit6 extends SerialTransferTest implements Runnable {
     /**
      * Public constructor.
      */
-    public Kermit6() {
+    public Kermit9() {
     }
 
     /**
@@ -61,9 +63,7 @@ public class Kermit6 extends SerialTransferTest implements Runnable {
      */
     @Override
     public void doTest() throws IOException, TestFailedException {
-        System.out.printf("Kermit6: 4 binary file uploads - streaming\n");
-
-        System.setProperty("jermit.kermit.streaming", "true");
+        System.out.printf("Kermit9: 4 binary file uploads - NOISY\n");
 
         // Process:
         //
@@ -125,8 +125,9 @@ public class Kermit6 extends SerialTransferTest implements Runnable {
         Process kermitReceiver = kermitPB.start();
 
         KermitSender kermitSender = new KermitSender(
-                kermitReceiver.getInputStream(),
-                kermitReceiver.getOutputStream(), files);
+                new NoisyInputStream(kermitReceiver.getInputStream(), 50000),
+                new NoisyOutputStream(kermitReceiver.getOutputStream(), 50000),
+                files);
 
         kermitSender.run();
 
@@ -169,7 +170,7 @@ public class Kermit6 extends SerialTransferTest implements Runnable {
      */
     public static void main(final String [] args) {
         try {
-            Kermit6 test = new Kermit6();
+            Kermit9 test = new Kermit9();
             test.doTest();
         } catch (Throwable t) {
             t.printStackTrace();

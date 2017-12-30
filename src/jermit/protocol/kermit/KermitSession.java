@@ -54,8 +54,8 @@ public class KermitSession extends SerialFileTransferSession {
     // Variables --------------------------------------------------------------
     // ------------------------------------------------------------------------
 
-    // If true, enable some debugging output.
-    private static final boolean DEBUG = false;
+    // If true, enable some debugging output.  Note package private access.
+    static final boolean DEBUG = false;
 
     /**
      * The current sequence number.  Note package private access.
@@ -450,6 +450,46 @@ public class KermitSession extends SerialFileTransferSession {
             output.write(transferParameters.remote.PADC);
         }
         output.flush();
+
+        if (DEBUG) {
+            System.err.printf("Output %d bytes to wire: ",
+                lastPacketBytes.length + transferParameters.remote.NPAD);
+            for (int i = 0; i < lastPacketBytes.length; i++) {
+                System.err.printf("%02x ", lastPacketBytes[i]);
+            }
+            for (int i = 0; i < transferParameters.remote.NPAD; i++) {
+                System.err.printf("%02x ", transferParameters.remote.PADC);
+            }
+            System.err.println();
+        }
+    }
+
+    /**
+     * Construct and send a Nak packet onto the wire.
+     *
+     * @param seq sequence number of the packet
+     * @throws IOException if a java.io operation throws
+     */
+    protected void sendNak(final int seq) throws IOException {
+        Packet packet = new NakPacket(seq);
+        byte [] packetBytes = packet.encode(transferParameters);
+        output.write(packetBytes);
+        for (int i = 0; i < transferParameters.remote.NPAD; i++) {
+            output.write(transferParameters.remote.PADC);
+        }
+        output.flush();
+
+        if (DEBUG) {
+            System.err.printf("Output %d bytes to wire: ",
+                packetBytes.length + transferParameters.remote.NPAD);
+            for (int i = 0; i < packetBytes.length; i++) {
+                System.err.printf("%02x ", packetBytes[i]);
+            }
+            for (int i = 0; i < transferParameters.remote.NPAD; i++) {
+                System.err.printf("%02x ", transferParameters.remote.PADC);
+            }
+            System.err.println();
+        }
     }
 
     /**

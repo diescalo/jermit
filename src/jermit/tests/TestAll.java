@@ -53,7 +53,7 @@ public class TestAll {
              */
 
             /*
-             * Downloads - clean line
+             * Downloads - clean line.
              */
             (new Xmodem1()).doTest();
             (new Xmodem2()).doTest();
@@ -63,7 +63,7 @@ public class TestAll {
             (new Xmodem6()).doTest();
 
             /*
-             * Uploads - clean line
+             * Uploads - clean line.
              */
             (new Xmodem7()).doTest();
             (new Xmodem9()).doTest();
@@ -74,7 +74,7 @@ public class TestAll {
              */
 
             /*
-             * Noisy transfers
+             * Noisy transfers.
              */
             (new Xmodem11()).doTest();
             (new Xmodem12()).doTest();
@@ -95,14 +95,31 @@ public class TestAll {
              */
 
             if (false) {
+
+            /*
+             * Basic uploads and downloads - clean line.
+             */
             (new Kermit1()).doTest();
             (new Kermit2()).doTest();
             (new Kermit3()).doTest();
             (new Kermit4()).doTest();
             (new Kermit5()).doTest();
-            }
+
+            /*
+             * Streaming tests.  Turn it off afterwards.
+             */
             (new Kermit6()).doTest();
             (new Kermit7()).doTest();
+            System.setProperty("jermit.kermit.streaming", "false");
+
+            }
+
+            /*
+             * Noisy tests.
+             */
+            (new Kermit8()).doTest();
+            (new Kermit9()).doTest();
+
 
         } catch (Throwable t) {
             t.printStackTrace();

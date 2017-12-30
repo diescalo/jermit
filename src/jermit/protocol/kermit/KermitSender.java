@@ -52,7 +52,7 @@ public class KermitSender implements Runnable {
     // ------------------------------------------------------------------------
 
     // If true, enable some debugging output.
-    private static final boolean DEBUG = false;
+    private static final boolean DEBUG = KermitSession.DEBUG;
 
     /**
      * The Kermit session state.
@@ -199,8 +199,8 @@ public class KermitSender implements Runnable {
                     break;
 
                 default:
-                    // TODO: red flag a programming error
-                    break;
+                    throw new IllegalArgumentException("Internal error: " +
+                        "unknown state " + session.kermitState);
 
                 } // switch (session.kermitState)
 
@@ -380,6 +380,11 @@ public class KermitSender implements Runnable {
             session.sequenceNumber);
         packet.filename = filePart;
         filePosition = 0;
+        if (System.getProperty("jermit.kermit.robustFilenames",
+                "false").equals("true")
+        ) {
+            packet.robustFilename = true;
+        }
         session.sendPacket(packet);
         session.setCurrentStatus("SENDING FILE");
 
@@ -402,6 +407,10 @@ public class KermitSender implements Runnable {
         }
         Packet packet = session.getPacket();
         if (packet.parseState != Packet.ParseState.OK) {
+            // We had an error.  Resend the last packet.
+            session.resendLastPacket();
+            session.setCurrentStatus("SENDING FILE");
+        } else if (packet instanceof NakPacket) {
             // We had an error.  Resend the last packet.
             session.resendLastPacket();
             session.setCurrentStatus("SENDING FILE");
@@ -482,6 +491,10 @@ public class KermitSender implements Runnable {
             // We had an error.  Resend the last packet.
             session.resendLastPacket();
             session.setCurrentStatus("SENDING ATTRIBUTES");
+        } else if (packet instanceof NakPacket) {
+            // We had an error.  Resend the last packet.
+            session.resendLastPacket();
+            session.setCurrentStatus("SENDING ATTRIBUTES");
         } else if (packet instanceof AckPacket) {
             // We got the remote side's ACK to our File-Attributes
             session.sequenceNumber++;
@@ -537,27 +550,36 @@ public class KermitSender implements Runnable {
             ackedBytes = outstandingBytes;
             session.sequenceNumber++;
         } else {
-            Packet packet = session.getPacket();
-            if (packet.parseState != Packet.ParseState.OK) {
-                // We had an error.  Resend the last packet.
-                session.resendLastPacket();
-                session.setCurrentStatus("DATA");
-            } else if (packet instanceof AckPacket) {
-                // We got the remote side's ACK to our File-Attributes
-                session.sequenceNumber++;
 
-                ackedBytes = outstandingBytes;
-            } else if (packet instanceof ErrorPacket) {
-                // Remote side signalled error
-                session.abort(((ErrorPacket) packet).errorMessage);
-                session.cancelFlag = 1;
-            } else {
-                // Something else came in I'm not looking for.  This will always
-                // be a protocol error.
-                session.abort("PROTOCOL ERROR");
-                session.cancelFlag = 1;
+            // Loop until we get an ACK.
+            for (;;) {
+                Packet packet = session.getPacket();
+                if (packet.parseState != Packet.ParseState.OK) {
+                    // We had an error.  Resend the last packet.
+                    session.resendLastPacket();
+                    session.setCurrentStatus("DATA");
+                } else if (packet instanceof NakPacket) {
+                    // We had an error.  Resend the last packet.
+                    session.resendLastPacket();
+                    session.setCurrentStatus("DATA");
+                } else if (packet instanceof AckPacket) {
+                    // We got the remote side's ACK to our File-Attributes
+                    session.sequenceNumber++;
+
+                    ackedBytes = outstandingBytes;
+                    break;
+                } else if (packet instanceof ErrorPacket) {
+                    // Remote side signalled error
+                    session.abort(((ErrorPacket) packet).errorMessage);
+                    session.cancelFlag = 1;
+                } else {
+                    // Something else came in I'm not looking for.  This will
+                    // always be a protocol error.
+                    session.abort("PROTOCOL ERROR");
+                    session.cancelFlag = 1;
+                }
             }
-        }
+        } // for (;;)
 
         // Increment stats.
         synchronized (this) {
@@ -613,6 +635,10 @@ public class KermitSender implements Runnable {
         }
         Packet packet = session.getPacket();
         if (packet.parseState != Packet.ParseState.OK) {
+            // We had an error.  Resend the last packet.
+            session.resendLastPacket();
+            session.setCurrentStatus("SENDING EOF");
+        } else if (packet instanceof NakPacket) {
             // We had an error.  Resend the last packet.
             session.resendLastPacket();
             session.setCurrentStatus("SENDING EOF");
@@ -685,6 +711,10 @@ public class KermitSender implements Runnable {
         }
         Packet packet = session.getPacket();
         if (packet.parseState != Packet.ParseState.OK) {
+            // We had an error.  Resend the last packet.
+            session.resendLastPacket();
+            session.setCurrentStatus("SENDING BREAK");
+        } else if (packet instanceof NakPacket) {
             // We had an error.  Resend the last packet.
             session.resendLastPacket();
             session.setCurrentStatus("SENDING BREAK");

@@ -34,7 +34,6 @@ import java.util.LinkedList;
 import java.util.List;
 
 import jermit.protocol.kermit.KermitSender;
-import jermit.protocol.kermit.KermitSession;
 import jermit.tests.SerialTransferTest;
 import jermit.tests.TestFailedException;
 
@@ -114,7 +113,7 @@ public class Kermit5 extends SerialTransferTest implements Runnable {
         }
 
         ProcessBuilder kermitPB = new ProcessBuilder("script", "-fqe",
-            "/dev/null", "-c", "kermit -V -r");
+            "/dev/null", "-c", "kermit -r -i");
         /*
         ProcessBuilder kermitPB = new ProcessBuilder("script", "-fqe",
             "/dev/null", "-c", "gkermit -r -i");

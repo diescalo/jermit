@@ -41,7 +41,7 @@ final class KermitInit {
     // ------------------------------------------------------------------------
 
     // If true, enable some debugging output.
-    private static final boolean DEBUG = false;
+    private static final boolean DEBUG = KermitSession.DEBUG;
 
     /**
      * Default block size.
@@ -51,17 +51,17 @@ final class KermitInit {
     /**
      * If true, use 7-bit ASCII for everything.
      */
-    private static boolean requireSevenBitOnly = false;
+    private boolean requireSevenBitOnly = false;
 
     /**
      * If true, use long packets (up to 9024 bytes).
      */
-    private static boolean supportLongPackets = true;
+    private boolean supportLongPackets = true;
 
     /**
      * If true, use streaming mode for the file data portion.
      */
-    private static boolean supportStreaming = false;
+    private boolean supportStreaming = false;
 
     /**
      * Start-of-packet mark byte.  Default is SOH (0x01).
@@ -255,6 +255,16 @@ final class KermitInit {
         ) {
             supportStreaming = true;
         }
+        if (System.getProperty("jermit.kermit.longPackets",
+                "true").equals("false")
+        ) {
+            supportLongPackets = false;
+        }
+        if (System.getProperty("jermit.kermit.resend",
+                "true").equals("false")
+        ) {
+            doResend = false;
+        }
 
         textMode = false;
         checkType = 1;
@@ -282,12 +292,20 @@ final class KermitInit {
         //    0x08 - Can accept Attribute packets
         //    0x02 - Can send/receive long packets
         //    0x04 - Can do sliding windows
+        /*
         CAPAS = 0x10 | 0x08 | 0x04;
         doResend = true;
         attributes = true;
         windowing = true;
+         */
+        // Windowing is not yet supported
+        CAPAS = 0x10 | 0x08;
+        doResend = true;
+        attributes = true;
+        windowing = false;
 
-        WINDO = 30;
+        // WINDO = 30;
+        WINDO = 0;
         MAXLX1 = DEFAULT_BLOCK_SIZE / 95;
         MAXLX2 = DEFAULT_BLOCK_SIZE % 95;
         if (supportLongPackets == true) {

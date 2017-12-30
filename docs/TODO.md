@@ -6,14 +6,10 @@ Jermit TODO List
   Kermit tests:
     NPAD
     Noisy transfer
-    File protection
     FileAttributes.NewFileAccessMode's
     Skip file - download
     Skip file - upload
     Resume
-    Robust filenames option
-    Long packets option
-    Resend option
 
 0.0.4:
 
