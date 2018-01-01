@@ -5,7 +5,6 @@ Jermit TODO List
 
   Kermit tests:
     NPAD
-    Noisy transfer
     FileAttributes.NewFileAccessMode's
     Skip file - download
     Skip file - upload
@@ -121,3 +120,48 @@ jermit.ui.kermit.Main
   - looks like C-Kermit
     - readline-like support
   - same command-line options
+
+
+1.1.0 Wishlist
+--------------
+
+HSLink-like UI with dual chat screens
+
+
+Regression Checklist
+--------------------
+
+
+Release Checklist √
+-------------------
+
+Eliminate all Eclipse warnings
+
+Fix all marked TODOs in code
+
+Eliminate DEBUG, System.err prints
+
+Update written by date to current year:
+    All code headers
+    VERSION
+
+Tag github
+
+Upload to sonatype
+
+
+Brainstorm Wishlist
+-------------------
+
+
+
+Bugs Noted In Other Programs
+----------------------------
+
+ckermit:
+
+  - Sends last short packet with length exceeding receiver's MAXL but
+    within sender's MAXL.
+
+  - Receiver fails to write a small (< 10k) ASCII file to disk within
+    a larger transfer of only binary files.

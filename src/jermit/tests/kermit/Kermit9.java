@@ -125,8 +125,8 @@ public class Kermit9 extends SerialTransferTest implements Runnable {
         Process kermitReceiver = kermitPB.start();
 
         KermitSender kermitSender = new KermitSender(
-                new NoisyInputStream(kermitReceiver.getInputStream(), 50000),
-                new NoisyOutputStream(kermitReceiver.getOutputStream(), 50000),
+                new NoisyInputStream(kermitReceiver.getInputStream(), 10000),
+                new NoisyOutputStream(kermitReceiver.getOutputStream(), 10000),
                 files);
 
         kermitSender.run();

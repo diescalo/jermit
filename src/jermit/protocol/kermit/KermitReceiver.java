@@ -33,6 +33,7 @@ import java.io.InputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 
+import jermit.io.ReadTimeoutException;
 import jermit.io.TimeoutInputStream;
 import jermit.protocol.FileInfo;
 import jermit.protocol.FileInfoModifier;
@@ -170,12 +171,13 @@ public class KermitReceiver implements Runnable {
 
                 } // switch (session.kermitState)
 
-            } catch (EOFException e) {
+            } catch (ReadTimeoutException e) {
                 if (DEBUG) {
                     e.printStackTrace();
                 }
                 try {
                     session.timeout();
+                    session.sendNak(session.sequenceNumber + 1);
                 } catch (IOException e2) {
                     if (DEBUG) {
                         e2.printStackTrace();
@@ -238,7 +240,8 @@ public class KermitReceiver implements Runnable {
      * @throws KermitCancelledException if three Ctrl-C's are encountered in
      * a row
      */
-    private void receiveBeginWait() throws EOFException, IOException,
+    private void receiveBeginWait() throws ReadTimeoutException, EOFException,
+                                           IOException,
                                            KermitCancelledException {
 
         if (DEBUG) {
@@ -287,8 +290,8 @@ public class KermitReceiver implements Runnable {
      * @throws KermitCancelledException if three Ctrl-C's are encountered in
      * a row
      */
-    private void receiveFile() throws EOFException, IOException,
-                                      KermitCancelledException {
+    private void receiveFile() throws ReadTimeoutException, EOFException,
+                                      IOException, KermitCancelledException {
 
         if (DEBUG) {
             System.err.println("receiveFile() waiting for File...");
@@ -352,7 +355,8 @@ public class KermitReceiver implements Runnable {
      * @throws KermitCancelledException if three Ctrl-C's are encountered in
      * a row
      */
-    private void receiveFileAttributes() throws EOFException, IOException,
+    private void receiveFileAttributes() throws ReadTimeoutException,
+                                                EOFException, IOException,
                                                 KermitCancelledException {
         if (DEBUG) {
             System.err.println("receiveFile() waiting for Attributes...");
@@ -430,11 +434,12 @@ public class KermitReceiver implements Runnable {
      * @throws KermitCancelledException if three Ctrl-C's are encountered in
      * a row
      */
-    private void receiveData() throws EOFException, IOException,
-                                      KermitCancelledException {
+    private void receiveData() throws ReadTimeoutException, EOFException,
+                                      IOException, KermitCancelledException {
 
         if (DEBUG) {
-            System.err.println("receiveData() waiting for Data...");
+            System.err.printf("receiveData() waiting for Data expect SEQ %d\n",
+                (session.sequenceNumber % 64));
         }
 
         Packet packet = session.getPacket();
@@ -443,6 +448,32 @@ public class KermitReceiver implements Runnable {
             session.sendNak(session.sequenceNumber);
         } else if (packet instanceof FileDataPacket) {
             session.setCurrentStatus("DATA");
+
+            if (packet.seq != (session.sequenceNumber % 64)) {
+                if (packet.seq == ((session.sequenceNumber - 1) % 64)) {
+                    // Our ACK got messed up by the wire, so the sender
+                    // repeated their data packet.  Ignore the data, but
+                    // re-send the ACK.
+                    if (DEBUG) {
+                        System.err.printf("WARNING: got SEQ %d instead of %d\n",
+                            packet.seq, (session.sequenceNumber % 64));
+                    }
+                    session.sendAck(packet.seq);
+                    return;
+                } else {
+                    // We are out of sequence with the sender.  Bail out
+                    // here.  When we go to windowing mode, this will be a
+                    // more complex check and end up ignored being outside
+                    // the window.
+                    if (DEBUG) {
+                        System.err.printf("ERROR: got SEQ %d instead of %d\n",
+                            packet.seq, (session.sequenceNumber % 64));
+                    }
+                    session.abort("PROTOCOL ERROR, INVALID PACKET SEQUENCE");
+                    session.cancelFlag = 1;
+                    return;
+                }
+            }
 
             if (session.transferParameters.active.streaming == true) {
                 // Don't ACK when streaming

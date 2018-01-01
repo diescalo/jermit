@@ -235,7 +235,7 @@ final class KermitInit {
         CHKT = '1';
         REPT = ' ';
         CAPAS = 0;
-        WINDO = 1;
+        WINDO = 0;
         attributes = false;
         windowing = false;
         longPackets = false;
@@ -297,15 +297,15 @@ final class KermitInit {
         doResend = true;
         attributes = true;
         windowing = true;
+        WINDO = 30;
          */
         // Windowing is not yet supported
         CAPAS = 0x10 | 0x08;
         doResend = true;
         attributes = true;
         windowing = false;
-
-        // WINDO = 30;
         WINDO = 0;
+
         MAXLX1 = DEFAULT_BLOCK_SIZE / 95;
         MAXLX2 = DEFAULT_BLOCK_SIZE % 95;
         if (supportLongPackets == true) {
@@ -538,7 +538,7 @@ final class KermitInit {
                 this.windowing = false;
             } else {
                 this.windowing = local.windowing;
-                if (local.windowing == true) {
+                if ((local.windowing == true) && (this.WINDO > 0)) {
                     this.CAPAS |= 0x04;
                 }
             }
@@ -546,7 +546,12 @@ final class KermitInit {
             this.windowing = false;
         }
         if (this.windowing == false) {
-            this.WINDO = 1;
+            // Qodem had this at WINDO = 1 because it would use a 1-packet
+            // sliding window buffer.  But this design is different, and
+            // WINDO needs to be 0 to really get ckermit not to do sliding
+            // windows.  Otherwise we could see ckermit sender respond with
+            // the wrong sequence number when receiving a NAK.
+            this.WINDO = 0;
         }
 
         if (DEBUG) {

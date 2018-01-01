@@ -29,12 +29,14 @@
 package jermit.protocol.kermit;
 
 import java.io.ByteArrayOutputStream;
+import java.io.EOFException;
 import java.io.InputStream;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
 import jermit.io.EOFInputStream;
+import jermit.io.ReadTimeoutException;
 
 /**
  * A Packet represents one message between each side of the link.
@@ -1300,15 +1302,17 @@ abstract class Packet {
      * @return the next packet, mangled or not.  In insufficient data is
      * present to determine the correct packet type, a NakPacket will be
      * returned.
-     * @param kermitState overall protocol state, used for the special case
-     * of the Ack to a Send-Init
+     * @param kermitState overall protocol state, used for the special cases
+     * of the Ack and Nak related to Send-Init
      * @throws IOException if a java.io operation throws
      */
     public static Packet decode(final EOFInputStream input,
         final TransferParameters transferParameters,
-        final KermitState kermitState) throws IOException,
+        final KermitState kermitState) throws ReadTimeoutException,
+                                              EOFException, IOException,
                                               KermitCancelledException {
 
+        KermitInit local = transferParameters.local;
         KermitInit remote = transferParameters.remote;
         KermitInit active = transferParameters.active;
         boolean longPacket = false;
@@ -1353,8 +1357,27 @@ abstract class Packet {
             return new NakPacket(ParseState.PROTO_LEN, (byte) 0);
         }
         // Sanity check the length field
-        if ((longPacket == false) && (len > remote.MAXL)) {
-            // Bad LEN field - it is too big
+        if ((longPacket == false)
+            && (len > local.MAXL)
+            && (len <= remote.MAXL)
+        ) {
+            // Bad LEN field - it is too big.  We OUGHT to throw this packet
+            // away, BUT I have seen ckermit deliver packets that exceed the
+            // MAXL I gave it in my Send-Init ACK but are within its MAXL.
+            // Make this a warning instead.
+            if (DEBUG) {
+                System.err.printf("WARNING: Remote side sent packet len %d, " +
+                    "which exceeds the MAXL *I* asked for of %d\n", len,
+                    local.MAXL);
+            }
+        } else if ((longPacket == false) && (len > remote.MAXL)) {
+            // Bad LEN field - it is too big.  And this one we are definitely
+            // tossing, because it exceeds both MAXL values.
+            if (DEBUG) {
+                System.err.printf("ERROR: len %d too long " +
+                    "(MAXL local %d remote %d)\n", len, local.MAXL,
+                    remote.MAXL);
+            }
             return new NakPacket(ParseState.PROTO_LEN, (byte) 0);
         }
 
@@ -1368,6 +1391,9 @@ abstract class Packet {
             System.err.printf("SEQ: %c %02x %d\n", (char) seq, seq, seq);
         }
         if ((seq < 0) || (seq > 63)) {
+            if (DEBUG) {
+                System.err.printf("ERROR: invalid seq %d ", seq);
+            }
             // Bad packet, SEQ is outside valid range.
             return new NakPacket(ParseState.PROTO_SEQ, (byte) 0);
         }
@@ -1393,8 +1419,12 @@ abstract class Packet {
             }
 
             // Sanity check the length field
-            if (len > remote.MAXLX1 * 95 + remote.MAXLX2) {
+            if (len > local.MAXLX1 * 95 + local.MAXLX2) {
                 // Bad LEN field - it is too big
+                if (DEBUG) {
+                    System.err.printf("ERROR: invalid long packet len %d ",
+                        len);
+                }
                 return new NakPacket(ParseState.PROTO_LEN, (byte) 0);
             }
             checkArray.write(toChar(lenx1));
@@ -1417,6 +1447,9 @@ abstract class Packet {
             // Sanity check the HCHECK field
             if (hcheckGiven != hcheckComputed) {
                 // Bad extended header checksum
+                if (DEBUG) {
+                    System.err.println("ERROR: invalid long packet hcheck");
+                }
                 return new NakPacket(ParseState.PROTO_HCHECK, (byte) 0);
             }
 
@@ -1471,9 +1504,14 @@ abstract class Packet {
                 checkType = 1;
                 break;
             case NAK:
-                checkType = (byte) bulkRead.length;
-                if ((checkType < 1) || (checkType > 3)) {
+                // Special case: the Nak to a SendInit must use check type 1.
+                if (kermitState == KermitState.KM_SW) {
+                    if (DEBUG) {
+                        System.err.println("NAK to the Send-Init");
+                    }
                     checkType = 1;
+                } else {
+                    checkType = active.checkType;
                 }
                 break;
             default:
@@ -1483,7 +1521,7 @@ abstract class Packet {
         } catch (KermitProtocolException e) {
             if (DEBUG) {
                 e.printStackTrace();
-                System.err.printf("decode(): INVALID PACKET TYPE %s\n",
+                System.err.printf("decode(): ERROR invalid packet type %s\n",
                     Byte.toString(typeChar));
             }
             // Bad TYPE field
@@ -1699,8 +1737,8 @@ abstract class Packet {
             // We encountered an error in the checksum/crc, bail out before
             // decoding the data field.
             if (DEBUG) {
-                System.err.printf("decode(): packet type %s failed check/CRC\n",
-                    packet.type);
+                System.err.printf("decode(): ERROR packet type %s failed " +
+                    "check/CRC\n", packet.type);
             }
             return packet;
         }
@@ -1718,8 +1756,8 @@ abstract class Packet {
         if (packet.parseState != ParseState.OK) {
             // There was some kind of error decoding the data field.
             if (DEBUG) {
-                System.err.printf("decode(): packet parse fail, received %s\n",
-                    packet.type);
+                System.err.printf("decode(): ERROR packet parse fail, " +
+                    "received %s\n", packet.type);
             }
             return packet;
         }

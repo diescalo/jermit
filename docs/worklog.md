@@ -1,3 +1,13 @@
+January 1, 2018
+
+We are a lot more reliable over noisy links now.  Receiver detects
+duplicated data packets and acks accordingly, sender now ignores
+packets with error so it doesn't resend spuriously, and I think I have
+detected maybe another true ckermit bug: it sent the last data packet
+(once) with a len of 90, which exceeds my MAXL of 80 but was within
+its MAXL of 94.  I detect and warn on that case now rather than NAK
+immediately as I should.
+
 December 29, 2017
 
 Covering more of the edge cases.  Most of the system properties to

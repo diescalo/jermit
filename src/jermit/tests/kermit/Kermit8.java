@@ -120,8 +120,8 @@ public class Kermit8 extends SerialTransferTest implements Runnable {
 
         // Allow overwrite of destination file, because we just created it.
         KermitReceiver kermitReceiver = new KermitReceiver(
-        new NoisyInputStream(kermitSender.getInputStream(), 50000),
-        new NoisyOutputStream(kermitSender.getOutputStream(), 50000),
+        new NoisyInputStream(kermitSender.getInputStream(), 10000),
+        new NoisyOutputStream(kermitSender.getOutputStream(), 10000),
                 destinationPath, false);
 
         kermitReceiver.run();

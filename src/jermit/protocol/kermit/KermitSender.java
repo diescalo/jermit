@@ -37,6 +37,7 @@ import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.List;
 
+import jermit.io.ReadTimeoutException;
 import jermit.io.TimeoutInputStream;
 import jermit.protocol.FileInfo;
 import jermit.protocol.FileInfoModifier;
@@ -204,7 +205,7 @@ public class KermitSender implements Runnable {
 
                 } // switch (session.kermitState)
 
-            } catch (EOFException e) {
+            } catch (ReadTimeoutException e) {
                 if (DEBUG) {
                     e.printStackTrace();
                 }
@@ -272,20 +273,21 @@ public class KermitSender implements Runnable {
      * @throws KermitCancelledException if three Ctrl-C's are encountered in
      * a row
      */
-    private void sendBeginWait() throws EOFException, IOException,
-                                        KermitCancelledException {
+    private void sendBeginWait() throws ReadTimeoutException, EOFException,
+                                        IOException, KermitCancelledException {
 
         if (DEBUG) {
             System.err.println("sendBeginWait() waiting for Send-Init ACK...");
         }
 
         Packet packet = session.getPacket();
-        if (packet.parseState != Packet.ParseState.OK) {
-            // We had an error.  For this state, we can simply respond with
-            // the Send-Init again.
-            session.resendLastPacket();
-            session.setCurrentStatus("SENDING SEND-INIT");
-        } else if (packet instanceof NakPacket) {
+        while (packet.parseState != Packet.ParseState.OK) {
+            // The Kermit protocol specifically instructs the sender to
+            // ignore bad packets.  So keep reading until a packet parses OK.
+            packet = session.getPacket();
+        }
+
+        if (packet instanceof NakPacket) {
             // This is probably the NAK(0) that kicks us off.  Resend the
             // Send-Init.
             session.resendLastPacket();
@@ -399,18 +401,20 @@ public class KermitSender implements Runnable {
      * @throws KermitCancelledException if three Ctrl-C's are encountered in
      * a row
      */
-    private void sendFileWait() throws EOFException, IOException,
-                                       KermitCancelledException {
+    private void sendFileWait() throws ReadTimeoutException, EOFException,
+                                       IOException, KermitCancelledException {
 
         if (DEBUG) {
             System.err.println("sendFileWait() waiting for File ACK...");
         }
         Packet packet = session.getPacket();
-        if (packet.parseState != Packet.ParseState.OK) {
-            // We had an error.  Resend the last packet.
-            session.resendLastPacket();
-            session.setCurrentStatus("SENDING FILE");
-        } else if (packet instanceof NakPacket) {
+        while (packet.parseState != Packet.ParseState.OK) {
+            // The Kermit protocol specifically instructs the sender to
+            // ignore bad packets.  So keep reading until a packet parses OK.
+            packet = session.getPacket();
+        }
+
+        if (packet instanceof NakPacket) {
             // We had an error.  Resend the last packet.
             session.resendLastPacket();
             session.setCurrentStatus("SENDING FILE");
@@ -479,7 +483,8 @@ public class KermitSender implements Runnable {
      * @throws KermitCancelledException if three Ctrl-C's are encountered in
      * a row
      */
-    private void sendFileAttributesWait() throws EOFException, IOException,
+    private void sendFileAttributesWait() throws ReadTimeoutException,
+                                                 IOException, EOFException,
                                                  KermitCancelledException {
 
         if (DEBUG) {
@@ -487,11 +492,13 @@ public class KermitSender implements Runnable {
                 "Attributes ACK...");
         }
         Packet packet = session.getPacket();
-        if (packet.parseState != Packet.ParseState.OK) {
-            // We had an error.  Resend the last packet.
-            session.resendLastPacket();
-            session.setCurrentStatus("SENDING ATTRIBUTES");
-        } else if (packet instanceof NakPacket) {
+        while (packet.parseState != Packet.ParseState.OK) {
+            // The Kermit protocol specifically instructs the sender to
+            // ignore bad packets.  So keep reading until a packet parses OK.
+            packet = session.getPacket();
+        }
+
+        if (packet instanceof NakPacket) {
             // We had an error.  Resend the last packet.
             session.resendLastPacket();
             session.setCurrentStatus("SENDING ATTRIBUTES");
@@ -554,11 +561,14 @@ public class KermitSender implements Runnable {
             // Loop until we get an ACK.
             for (;;) {
                 Packet packet = session.getPacket();
-                if (packet.parseState != Packet.ParseState.OK) {
-                    // We had an error.  Resend the last packet.
-                    session.resendLastPacket();
-                    session.setCurrentStatus("DATA");
-                } else if (packet instanceof NakPacket) {
+                while (packet.parseState != Packet.ParseState.OK) {
+                    // The Kermit protocol specifically instructs the sender
+                    // to ignore bad packets.  So keep reading until a packet
+                    // parses OK.
+                    packet = session.getPacket();
+                }
+
+                if (packet instanceof NakPacket) {
                     // We had an error.  Resend the last packet.
                     session.resendLastPacket();
                     session.setCurrentStatus("DATA");
@@ -627,18 +637,20 @@ public class KermitSender implements Runnable {
      * @throws KermitCancelledException if three Ctrl-C's are encountered in
      * a row
      */
-    private void sendEofWait() throws EOFException, IOException,
-                                      KermitCancelledException {
+    private void sendEofWait() throws ReadTimeoutException, EOFException,
+                                      IOException, KermitCancelledException {
 
         if (DEBUG) {
             System.err.println("sendEofWait() waiting for EOF ACK...");
         }
         Packet packet = session.getPacket();
-        if (packet.parseState != Packet.ParseState.OK) {
-            // We had an error.  Resend the last packet.
-            session.resendLastPacket();
-            session.setCurrentStatus("SENDING EOF");
-        } else if (packet instanceof NakPacket) {
+        while (packet.parseState != Packet.ParseState.OK) {
+            // The Kermit protocol specifically instructs the sender to
+            // ignore bad packets.  So keep reading until a packet parses OK.
+            packet = session.getPacket();
+        }
+
+        if (packet instanceof NakPacket) {
             // We had an error.  Resend the last packet.
             session.resendLastPacket();
             session.setCurrentStatus("SENDING EOF");
@@ -703,18 +715,20 @@ public class KermitSender implements Runnable {
      * @throws KermitCancelledException if three Ctrl-C's are encountered in
      * a row
      */
-    private void sendBreakWait() throws EOFException, IOException,
-                                        KermitCancelledException {
+    private void sendBreakWait() throws ReadTimeoutException, EOFException,
+                                        IOException, KermitCancelledException {
 
         if (DEBUG) {
             System.err.println("sendBreakWait() waiting for BREAK ACK...");
         }
         Packet packet = session.getPacket();
-        if (packet.parseState != Packet.ParseState.OK) {
-            // We had an error.  Resend the last packet.
-            session.resendLastPacket();
-            session.setCurrentStatus("SENDING BREAK");
-        } else if (packet instanceof NakPacket) {
+        while (packet.parseState != Packet.ParseState.OK) {
+            // The Kermit protocol specifically instructs the sender to
+            // ignore bad packets.  So keep reading until a packet parses OK.
+            packet = session.getPacket();
+        }
+
+        if (packet instanceof NakPacket) {
             // We had an error.  Resend the last packet.
             session.resendLastPacket();
             session.setCurrentStatus("SENDING BREAK");

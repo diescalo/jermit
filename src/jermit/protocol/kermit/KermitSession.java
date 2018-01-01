@@ -38,6 +38,7 @@ import java.util.List;
 import jermit.io.EOFInputStream;
 import jermit.io.LocalFile;
 import jermit.io.LocalFileInterface;
+import jermit.io.ReadTimeoutException;
 import jermit.io.TimeoutInputStream;
 import jermit.protocol.FileInfo;
 import jermit.protocol.FileInfoModifier;
@@ -135,7 +136,7 @@ public class KermitSession extends SerialFileTransferSession {
             // Someone has already set the timeout.  Keep their value.
             this.input  = new EOFInputStream(input);
         } else {
-            // Use the default value of 10 seconds.
+            // Use the default value for this flavor of Xmodem.
             this.input  = new EOFInputStream(new TimeoutInputStream(input,
                     10 * 1000));
         }
@@ -261,8 +262,7 @@ public class KermitSession extends SerialFileTransferSession {
     }
 
     /**
-     * Skip this file and move to the next file in the transfer.  Note that
-     * this does nothing for Kermit.
+     * Skip this file and move to the next file in the transfer.
      *
      * @param keepPartial If true, save whatever has been collected if this
      * was a download.  If false, delete the file.
@@ -378,7 +378,6 @@ public class KermitSession extends SerialFileTransferSession {
      * @throws IOException if a java.io operation throws
      */
     synchronized void timeout() throws IOException {
-
         if (DEBUG) {
             System.err.println("TIMEOUT");
         }
@@ -422,8 +421,8 @@ public class KermitSession extends SerialFileTransferSession {
      * @throws KermitCancelledException if three Ctrl-C's are encountered in
      * a row
      */
-    protected Packet getPacket() throws EOFException, IOException,
-                                        KermitCancelledException {
+    protected Packet getPacket() throws ReadTimeoutException, EOFException,
+                                        IOException, KermitCancelledException {
 
         return Packet.decode(input, transferParameters, kermitState);
     }
