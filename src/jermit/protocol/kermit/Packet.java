@@ -1350,11 +1350,13 @@ abstract class Packet {
                 longPacket = true;
             } else {
                 // Invalid LEN value.  Bail out.
-                return new NakPacket(ParseState.PROTO_LEN, (byte) 0);
+                return new NakPacket(ParseState.PROTO_LEN, active.checkType,
+                    (byte) 0);
             }
         } else if ((len == 1) || (len == 2)) {
             // This is definitely an error, length must be 3 or more.
-            return new NakPacket(ParseState.PROTO_LEN, (byte) 0);
+            return new NakPacket(ParseState.PROTO_LEN,  active.checkType,
+                (byte) 0);
         }
         // Sanity check the length field
         if ((longPacket == false)
@@ -1378,7 +1380,8 @@ abstract class Packet {
                     "(MAXL local %d remote %d)\n", len, local.MAXL,
                     remote.MAXL);
             }
-            return new NakPacket(ParseState.PROTO_LEN, (byte) 0);
+            return new NakPacket(ParseState.PROTO_LEN,  active.checkType,
+                (byte) 0);
         }
 
         // Begin collecting bytes that will be included in the checksum.
@@ -1395,7 +1398,8 @@ abstract class Packet {
                 System.err.printf("ERROR: invalid seq %d ", seq);
             }
             // Bad packet, SEQ is outside valid range.
-            return new NakPacket(ParseState.PROTO_SEQ, (byte) 0);
+            return new NakPacket(ParseState.PROTO_SEQ,  active.checkType,
+                (byte) 0);
         }
         checkArray.write(toChar(seq));
 
@@ -1425,7 +1429,8 @@ abstract class Packet {
                     System.err.printf("ERROR: invalid long packet len %d ",
                         len);
                 }
-                return new NakPacket(ParseState.PROTO_LEN, (byte) 0);
+                return new NakPacket(ParseState.PROTO_LEN,  active.checkType,
+                    (byte) 0);
             }
             checkArray.write(toChar(lenx1));
             checkArray.write(toChar(lenx2));
@@ -1450,7 +1455,8 @@ abstract class Packet {
                 if (DEBUG) {
                     System.err.println("ERROR: invalid long packet hcheck");
                 }
-                return new NakPacket(ParseState.PROTO_HCHECK, (byte) 0);
+                return new NakPacket(ParseState.PROTO_HCHECK, active.checkType,
+                    (byte) 0);
             }
 
             dataBegin = 6;
@@ -1525,7 +1531,8 @@ abstract class Packet {
                     Byte.toString(typeChar));
             }
             // Bad TYPE field
-            return new NakPacket(ParseState.PROTO_TYPE, (byte) 0);
+            return new NakPacket(ParseState.PROTO_TYPE, active.checkType,
+                (byte) 0);
         }
 
         if (checkType != 12) {
@@ -1672,11 +1679,11 @@ abstract class Packet {
             packet = new AckPacket(checkType, seq);
             break;
         case NAK:
-            packet = new NakPacket(ParseState.OK, seq);
+            packet = new NakPacket(ParseState.OK, checkType, seq);
             break;
         case ERROR:
-            packet = new ErrorPacket(checkType,
-                "Placeholder - no error string yet", seq);
+            packet = new ErrorPacket("Placeholder - no error string yet",
+                checkType, seq);
             break;
         case FILE:
             packet = new FilePacket(checkType, seq);
@@ -1723,8 +1730,8 @@ abstract class Packet {
             // Fall through...
         default:
             // We should never transmit these packets, so see them as errors
-            packet = new ErrorPacket(checkType,
-                "Internal Error!  Saw STATE_ANY on the wire.", seq);
+            packet = new ErrorPacket("Internal Error!  STATE_ANY on the wire?",
+                checkType, seq);
             break;
         }
 

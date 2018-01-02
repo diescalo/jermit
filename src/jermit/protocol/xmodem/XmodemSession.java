@@ -1016,7 +1016,6 @@ public class XmodemSession extends SerialFileTransferSession {
     protected void startUpload() throws IOException {
 
         int flavorType = -1;
-        int timeoutCount = 0;
 
         setCurrentStatus("FILE");
 

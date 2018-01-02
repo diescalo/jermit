@@ -8,6 +8,13 @@ detected maybe another true ckermit bug: it sent the last data packet
 its MAXL of 94.  I detect and warn on that case now rather than NAK
 immediately as I should.
 
+...well, Jermit has justified itself.  I found three things broken in
+Qodem: 1) Kermit send did not listen for receiver's resend file
+position in the Attributes ack; 2) Kermit send did not listen for
+receiver's request to skip in the Data ack; 3) Kermit send would hang
+indefinitely at Attributes when NOT windowing or streaming.  Glad to
+have another codebase now to test it against to find these things.
+
 December 29, 2017
 
 Covering more of the edge cases.  Most of the system properties to

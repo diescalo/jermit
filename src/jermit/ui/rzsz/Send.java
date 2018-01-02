@@ -33,6 +33,7 @@ import java.util.LinkedList;
 import jermit.protocol.FileInfo;
 import jermit.protocol.Protocol;
 import jermit.protocol.SerialFileTransferSession;
+import jermit.protocol.kermit.KermitSender;
 import jermit.protocol.xmodem.XmodemSender;
 import jermit.protocol.xmodem.XmodemSession;
 import jermit.protocol.ymodem.YmodemSender;
@@ -188,10 +189,14 @@ public class Send {
             // TODO
             System.err.println("Zmodem not yet supported.");
             System.exit(10);
+            break;
         case KERMIT:
-            // TODO
-            System.err.println("Kermit not yet supported.");
-            System.exit(10);
+            KermitSender sk = new KermitSender(System.in, System.out, fileArgs);
+            session = sk.getSession();
+            log = new SerialSessionLogger(session);
+            sessionStatusThread = new Thread(log);
+            transferThread = new Thread(sk);
+            break;
         }
 
         // We need System.in/out to behave like a dumb file.

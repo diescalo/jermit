@@ -31,6 +31,7 @@ package jermit.ui.rzsz;
 import jermit.protocol.FileInfo;
 import jermit.protocol.Protocol;
 import jermit.protocol.SerialFileTransferSession;
+import jermit.protocol.kermit.KermitReceiver;
 import jermit.protocol.xmodem.XmodemReceiver;
 import jermit.protocol.xmodem.XmodemSession;
 import jermit.protocol.ymodem.YmodemReceiver;
@@ -178,8 +179,8 @@ public class Receive {
             // Use vanilla only.  rb does not have a way to specify -G.
             YmodemSession.YFlavor yFlavor = YmodemSession.YFlavor.VANILLA;
 
-            YmodemReceiver rb = new YmodemReceiver(System.in, System.out,
-                downloadPath);
+            YmodemReceiver rb = new YmodemReceiver(yFlavor, System.in,
+                System.out, downloadPath, false);
 
             session = rb.getSession();
             log = new SerialSessionLogger(session);
@@ -190,10 +191,15 @@ public class Receive {
             // TODO
             System.err.println("Zmodem not yet supported.");
             System.exit(10);
+            break;
         case KERMIT:
-            // TODO
-            System.err.println("Kermit not yet supported.");
-            System.exit(10);
+            KermitReceiver rk = new KermitReceiver(System.in, System.out,
+                downloadPath, false);
+            session = rk.getSession();
+            log = new SerialSessionLogger(session);
+            sessionStatusThread = new Thread(log);
+            transferThread = new Thread(rk);
+            break;
         }
 
         // We need System.in/out to behave like a dumb file.

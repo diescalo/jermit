@@ -44,20 +44,24 @@ class NakPacket extends Packet {
      * Public constructor.
      *
      * @param parseState reason this NAK was generated
+     * @param checkType checksum type
      * @param seq sequence number of the packet this NAK is in response to
      */
-    public NakPacket(final ParseState parseState, final int seq) {
-        super(Type.NAK, (byte) 'N', "NAK Negative Acknowledge", (byte) 1, seq);
+    public NakPacket(final ParseState parseState, final byte checkType,
+        final int seq) {
+
+        super(Type.NAK, (byte) 'N', "NAK Negative Acknowledge", checkType, seq);
         this.parseState = parseState;
     }
 
     /**
      * Public constructor.
      *
+     * @param checkType checksum type
      * @param seq sequence number of the packet this NAK is in response to
      */
-    public NakPacket(final int seq) {
-        this(ParseState.OK, seq);
+    public NakPacket(final byte checkType, final int seq) {
+        this(ParseState.OK, checkType, seq);
     }
 
     // ------------------------------------------------------------------------

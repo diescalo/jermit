@@ -82,6 +82,12 @@ public class KermitReceiver implements Runnable {
      */
     private FileAttributesPacket attributes = null;
 
+    /**
+     * If set, delete the file right after saving it.  Used by skipFile()
+     * when keepPartial is false.
+     */
+    private boolean deleteAfterEof = false;
+
     // ------------------------------------------------------------------------
     // Constructors -----------------------------------------------------------
     // ------------------------------------------------------------------------
@@ -176,8 +182,17 @@ public class KermitReceiver implements Runnable {
                     e.printStackTrace();
                 }
                 try {
-                    session.timeout();
-                    session.sendNak(session.sequenceNumber + 1);
+                    // We might get ReadTimeoutException as a result of the
+                    // UI calling cancelTransfer() and that calling input's
+                    // cancelRead() function.  So don't count that case as a
+                    // real timeout.
+                    if (session.cancelFlag == 0) {
+                        session.timeout();
+                    }
+                    if (session.cancelFlag == 0) {
+                        // timeout() didn't kill the session, keep going.
+                        session.sendNak(session.sequenceNumber);
+                    }
                 } catch (IOException e2) {
                     if (DEBUG) {
                         e2.printStackTrace();
@@ -185,6 +200,12 @@ public class KermitReceiver implements Runnable {
                     session.abort("NETWORK I/O ERROR DURING TIMEOUT");
                     session.cancelFlag = 1;
                 }
+            } catch (EOFException e) {
+                if (DEBUG) {
+                    e.printStackTrace();
+                }
+                session.abort("UNEXPECTED END OF TRANSMISSION");
+                session.cancelFlag = 1;
             } catch (IOException e) {
                 if (DEBUG) {
                     e.printStackTrace();
@@ -378,16 +399,75 @@ public class KermitReceiver implements Runnable {
             if (attributes.filename == null) {
                 attributes.filename = downloadFilename;
             }
-            session.openDownloadFile(attributes.filename,
-                attributes.fileModTime, attributes.fileSize);
-            synchronized (session) {
-                file = session.getCurrentFile();
-                setFile = session.getCurrentFileInfoModifier();
-                fileOutput = file.getLocalFile().getOutputStream();
+            if (session.openDownloadFile(attributes.filename,
+                    attributes.fileModTime, attributes.fileSize,
+                    attributes.fileAccess)
+            ) {
+                synchronized (session) {
+                    file = session.getCurrentFile();
+                    setFile = session.getCurrentFileInfoModifier();
+                    fileOutput = file.getLocalFile().getOutputStream();
+                }
+            } else {
+                return;
             }
 
-            // ACK it
-            session.sendAck(packet.seq);
+            // ACK it - but fill in the data field if we can resend or not.
+            AckPacket ackPacket = new AckPacket(session.transferParameters.
+                active.checkType, packet.seq);
+            if (session.transferParameters.active.doResend) {
+                if (attributes.textMode) {
+                    // We are not allowed to support RESEND with text files,
+                    // so let the sender know that we won't do it.
+                    ackPacket.data = new byte[2];
+                    ackPacket.data[0] = 'N';
+                    ackPacket.data[1] = '+';
+
+                    if (DEBUG) {
+                        System.err.println("Ack'ing Attributes, but text " +
+                            "file does not resend.");
+                    }
+                } else {
+                    // We are already at the end of the file due to
+                    // LocalFile.getOutputStream().  We just need to let the
+                    // sender know how much of it we already have.
+                    long offset = file.getLocalFile().getLength();
+                    String fileLength = Long.toString(offset);
+                    ackPacket.data = new byte[2 + fileLength.length()];
+                    ackPacket.data[0] = '1';
+                    ackPacket.data[1] = (byte) (fileLength.length() + 32);
+                    for (int i = 0; i < fileLength.length(); i++) {
+                        ackPacket.data[i + 2] = (byte) fileLength.charAt(i);
+                    }
+                    if (DEBUG) {
+                        System.err.println("Ack'ing Attributes, RESEND " +
+                            "at " + fileLength);
+                    }
+
+                    // Increment stats.
+                    synchronized (session) {
+                        setFile.setBytesTransferred(file.
+                            getBytesTransferred() + offset);
+                        setFile.setBlocksTransferred(file.
+                            getBytesTransferred() / session.getBlockSize());
+                        session.setBytesTransferred(session.
+                            getBytesTransferred() + offset);
+                        session.setBlocksTransferred(session.
+                            getBytesTransferred() / session.getBlockSize());
+                    }
+                }
+            } else {
+                // We will accept the file, send it.  Technically there is no
+                // difference between this and an empty data field, but may
+                // as well include it for completeness here.
+                ackPacket.data = new byte[1];
+                ackPacket.data[0] = 'Y';
+
+                if (DEBUG) {
+                    System.err.println("Ack'ing Attributes, NO RESEND");
+                }
+            }
+            session.sendPacket(ackPacket);
             session.sequenceNumber++;
 
             // Move to the next state
@@ -403,11 +483,14 @@ public class KermitReceiver implements Runnable {
             // First, move to the next state.
             session.kermitState = KermitState.KM_RDW;
 
-            session.openDownloadFile(downloadFilename, -1, -1);
-            synchronized (session) {
-                file = session.getCurrentFile();
-                setFile = session.getCurrentFileInfoModifier();
-                fileOutput = file.getLocalFile().getOutputStream();
+            if (session.openDownloadFile(downloadFilename, -1, -1, null)) {
+                synchronized (session) {
+                    file = session.getCurrentFile();
+                    setFile = session.getCurrentFileInfoModifier();
+                    fileOutput = file.getLocalFile().getOutputStream();
+                }
+            } else {
+                return;
             }
 
             // ACK it
@@ -475,14 +558,30 @@ public class KermitReceiver implements Runnable {
                 }
             }
 
-            if (session.transferParameters.active.streaming == true) {
+            if (session.skipFileMode != 0) {
+                // We need to skip this file, and maybe delete it.  Even when
+                // streaming, we may send a skip Ack (but only one).
+                AckPacket ack = new AckPacket(session.transferParameters.
+                    active.checkType, packet.seq);
+                ack.data = new byte[1];
+                ack.data[0] = 'X';
+                session.sendPacket(ack);
+                if (session.skipFileMode == 2) {
+                    // We are not to keep the partial.
+                    deleteAfterEof = true;
+                }
+                session.skipFileMode = 0;
+                if (DEBUG) {
+                    System.err.println("  -- USER REQUEST TO SKIP FILE --");
+                }
+            } else if (session.transferParameters.active.streaming == true) {
                 // Don't ACK when streaming
                 if (DEBUG) {
                     System.err.printf("  -- streaming, don't ack SEQ %d --\n",
                         packet.seq);
                 }
             } else {
-                // ACK it
+                // ACK it like normal
                 session.sendAck(packet.seq);
             }
             session.sequenceNumber++;
@@ -490,7 +589,12 @@ public class KermitReceiver implements Runnable {
             // Save this packet.
             receiveSaveData((FileDataPacket) packet);
         } else if (packet instanceof EofPacket) {
-            session.setCurrentStatus("EOF");
+            EofPacket eof = (EofPacket) packet;
+            if (eof.skipFile) {
+                session.setCurrentStatus("REMOTE SENDER SKIPS FILE");
+            } else {
+                session.setCurrentStatus("EOF");
+            }
 
             // ACK it
             session.sendAck(packet.seq);
@@ -552,6 +656,12 @@ public class KermitReceiver implements Runnable {
                     ((attributes.fileProtection & 0040) != 0),
                     ((attributes.fileProtection & 0020) != 0),
                     ((attributes.fileProtection & 0010) != 0));
+            }
+
+            if (deleteAfterEof) {
+                // The user asked to discard the partial, so do that.
+                file.getLocalFile().delete();
+                deleteAfterEof = false;
             }
 
             // Reset for a new file.

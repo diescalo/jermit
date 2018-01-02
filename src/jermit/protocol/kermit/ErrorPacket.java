@@ -52,11 +52,11 @@ class ErrorPacket extends Packet {
     /**
      * Public constructor.
      *
-     * @param checkType checksum type
      * @param errorMessage error message to send to remote side
+     * @param checkType checksum type
      * @param seq sequence number of the packet
      */
-    public ErrorPacket(final byte checkType, final String errorMessage,
+    public ErrorPacket(final String errorMessage, final byte checkType,
         final int seq) {
 
         super(Type.ERROR, (byte) 'E', "Error", checkType, seq);

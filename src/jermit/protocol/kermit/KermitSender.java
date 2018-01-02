@@ -33,7 +33,6 @@ import java.io.File;
 import java.io.InputStream;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -210,7 +209,13 @@ public class KermitSender implements Runnable {
                     e.printStackTrace();
                 }
                 try {
-                    session.timeout();
+                    // We might get ReadTimeoutException as a result of the
+                    // UI calling cancelTransfer() and that calling input's
+                    // cancelRead() function.  So don't count that case as a
+                    // real timeout.
+                    if (session.cancelFlag == 0) {
+                        session.timeout();
+                    }
                 } catch (IOException e2) {
                     if (DEBUG) {
                         e2.printStackTrace();
@@ -218,6 +223,12 @@ public class KermitSender implements Runnable {
                     session.abort("NETWORK I/O ERROR DURING TIMEOUT");
                     session.cancelFlag = 1;
                 }
+            } catch (EOFException e) {
+                if (DEBUG) {
+                    e.printStackTrace();
+                }
+                session.abort("UNEXPECTED END OF TRANSMISSION");
+                session.cancelFlag = 1;
             } catch (IOException e) {
                 if (DEBUG) {
                     e.printStackTrace();
@@ -506,8 +517,78 @@ public class KermitSender implements Runnable {
             // We got the remote side's ACK to our File-Attributes
             session.sequenceNumber++;
 
-            // Move to the next state
-            session.kermitState = KermitState.KM_SDW;
+            AckPacket ackPacket = (AckPacket) packet;
+            if ((ackPacket.data != null) && (ackPacket.data.length > 0)) {
+                if (ackPacket.data[0] == 'N') {
+                    // Receiver refuses this file, move onto the next one.
+                    session.kermitState = KermitState.KM_SZ;
+                } else if (ackPacket.data[0] == '1') {
+                    // Receiver is OK, but we need to skip the bytes it has
+                    // so far.
+
+                    if (ackPacket.data.length < 3) {
+                        session.abort("INVALID RESEND OFFSET NIL");
+                        session.cancelFlag = 1;
+                        return;
+                    }
+                    int lengthN = ackPacket.data[1] - 32;
+                    if ((lengthN < 0)
+                        || (lengthN > ackPacket.data.length - 2)
+                    ) {
+                        session.abort("INVALID RESEND OFFSET " + lengthN);
+                        session.cancelFlag = 1;
+                        return;
+                    }
+                    StringBuilder lengthString = new StringBuilder();
+                    for (int i = 0; i < lengthN; i++) {
+                        lengthString.append((char) ackPacket.data[i + 2]);
+                    }
+                    try {
+                        long offset = Long.parseLong(lengthString.toString());
+                        if (DEBUG) {
+                            System.err.printf("RESEND skip %d bytes in input\n",
+                                offset);
+                        }
+                        if (offset > 0) {
+                            fileInput.skip(offset);
+                        } else {
+                            offset = 0;
+                        }
+
+                        // Increment stats.
+                        synchronized (session) {
+                            setFile.setBytesTransferred(file.
+                                getBytesTransferred() + offset);
+                            setFile.setBlocksTransferred(file.
+                                getBytesTransferred() / session.getBlockSize());
+                            session.setBytesTransferred(session.
+                                getBytesTransferred() + offset);
+                            session.setBlocksTransferred(session.
+                                getBytesTransferred() / session.getBlockSize());
+                        }
+
+                    } catch (NumberFormatException e) {
+                        if (DEBUG) {
+                            e.printStackTrace();
+                        }
+                        session.abort("INVALID RESEND OFFSET VALUE " +
+                            lengthString);
+                        session.cancelFlag = 1;
+                        return;
+                    }
+
+                    // Now we can move to the next state.
+                    session.kermitState = KermitState.KM_SDW;
+                } else {
+                    // Probably a 'Y' here (normal), but could be something
+                    // else too.  Regardless, move on to the next state.
+                    session.kermitState = KermitState.KM_SDW;
+                }
+            } else {
+                // Empty data field, move on to the next state.
+                session.kermitState = KermitState.KM_SDW;
+            }
+
         } else if (packet instanceof ErrorPacket) {
             // Remote side signalled error
             session.abort(((ErrorPacket) packet).errorMessage);
@@ -573,6 +654,21 @@ public class KermitSender implements Runnable {
                     session.resendLastPacket();
                     session.setCurrentStatus("DATA");
                 } else if (packet instanceof AckPacket) {
+                    AckPacket ackPacket = (AckPacket) packet;
+                    if ((ackPacket.data != null)
+                        && (ackPacket.data.length > 0)
+                    ) {
+                        if (ackPacket.data[0] == 'X') {
+                            // Receiver is asking to skip one file.
+                            session.setCurrentStatus("REMOTE RECEIVER ASKS " +
+                                "TO SKIP FILE");
+                            session.kermitState = KermitState.KM_SZ;
+                        } else if (ackPacket.data[0] == 'Z') {
+                            // Receiver is asking to kill the entire batch
+                            // TODO
+                        }
+                    }
+
                     // We got the remote side's ACK to our File-Attributes
                     session.sequenceNumber++;
 
@@ -592,20 +688,21 @@ public class KermitSender implements Runnable {
         } // for (;;)
 
         // Increment stats.
-        synchronized (this) {
+        synchronized (session) {
             setFile.setBytesTransferred(file.getBytesTransferred() +
                 ackedBytes);
             setFile.setBlocksTransferred(file.getBytesTransferred() /
                 session.getBlockSize());
-            session.setBlocksTransferred(session.getBytesTransferred() /
-                session.getBlockSize());
             session.setBytesTransferred(session.getBytesTransferred() +
                 ackedBytes);
+            session.setBlocksTransferred(session.getBytesTransferred() /
+                session.getBlockSize());
             session.setLastBlockMillis(System.currentTimeMillis());
         }
 
-        // If this was our last packet, switch to EOF.
-        if (dataPacket.eof) {
+        // If this was our last packet OR the user selected to skip this
+        // file, switch to EOF.
+        if (dataPacket.eof || (session.skipFileMode != 0)) {
             session.kermitState = KermitState.KM_SZ;
             synchronized (session) {
                 setFile.setBlocksTransferred(file.getBlocksTotal());
@@ -625,6 +722,10 @@ public class KermitSender implements Runnable {
         KermitInit active = session.transferParameters.active;
         EofPacket packet = new EofPacket(active.checkType,
             session.sequenceNumber);
+        if (session.skipFileMode != 0) {
+            packet.skipFile = true;
+            session.skipFileMode = 0;
+        }
         session.sendPacket(packet);
         session.kermitState = KermitState.KM_SZW;
         session.setCurrentStatus("SENDING EOF");

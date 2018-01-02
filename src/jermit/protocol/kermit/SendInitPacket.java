@@ -328,12 +328,53 @@ class SendInitPacket extends Packet {
                         (char) (data[capasI]), data[capasI], data[capasI]);
                 }
 
+                if ((byte) (whatami & 0x10) != 0) {
+                    // "Clear channel"
+                    if (DEBUG) {
+                        System.err.println("    WHATAMI: \"Clear channel\" " +
+                            "(unsupported)");
+                    }
+                }
+
                 if ((byte) (whatami & 0x08) != 0) {
-                    // Ability to stream
+                    // STREAMING
                     if (DEBUG) {
                         System.err.println("    WHATAMI: Can stream");
                     }
                     init.streaming = true;
+                }
+
+                if ((byte) (whatami & 0x04) != 0) {
+                    // FNAMES
+                    if (DEBUG) {
+                        System.err.println("    WHATAMI: Names CONVERTED");
+                    }
+                } else {
+                    if (DEBUG) {
+                        System.err.println("    WHATAMI: Names LITERAL");
+                    }
+                }
+
+                if ((byte) (whatami & 0x02) != 0) {
+                    // FMODE
+                    if (DEBUG) {
+                        System.err.println("    WHATAMI: global TEXT mode");
+                    }
+                } else {
+                    if (DEBUG) {
+                        System.err.println("    WHATAMI: global BINARY mode");
+                    }
+                }
+
+                if ((byte) (whatami & 0x01) != 0) {
+                    // SERVER
+                    if (DEBUG) {
+                        System.err.println("    WHATAMI: IN server mode");
+                    }
+                } else {
+                    if (DEBUG) {
+                        System.err.println("    WHATAMI: NOT in server mode");
+                    }
                 }
 
                 capasI++;

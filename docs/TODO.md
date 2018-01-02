@@ -1,15 +1,6 @@
 Jermit TODO List
 ================
 
-0.0.3:
-
-  Kermit tests:
-    NPAD
-    FileAttributes.NewFileAccessMode's
-    Skip file - download
-    Skip file - upload
-    Resume
-
 0.0.4:
 
   Zmodem:
@@ -21,6 +12,10 @@ Jermit TODO List
     Windowing support
     KermitServerSocket
     KermitServer
+
+  QodemUI:
+    Update to more recent Jexer Swing terminal backend
+    Add batch upload progress bar
 
 0.1.0:
 
@@ -165,3 +160,11 @@ ckermit:
 
   - Receiver fails to write a small (< 10k) ASCII file to disk within
     a larger transfer of only binary files.
+
+
+qodem:
+
+  - Kermit received file had wrong timestamp (off by ~20 minutes).
+    Was it qodem getting the wrong time, or jermit setting the wrong
+    time?
+

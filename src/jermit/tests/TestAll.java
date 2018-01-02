@@ -94,7 +94,7 @@ public class TestAll {
              * KERMIT ---------------------------------------------------------
              */
 
-            if (false) {
+            if (true) {
 
             /*
              * Basic uploads and downloads - clean line.
@@ -112,14 +112,13 @@ public class TestAll {
             (new Kermit7()).doTest();
             System.setProperty("jermit.kermit.streaming", "false");
 
-            }
-
             /*
              * Noisy tests.
              */
             (new Kermit8()).doTest();
             (new Kermit9()).doTest();
 
+            }
 
         } catch (Throwable t) {
             t.printStackTrace();

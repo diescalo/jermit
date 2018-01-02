@@ -242,6 +242,8 @@ public class QodemUI implements Runnable {
                 }
 
                 TKeypressEvent keypress = (TKeypressEvent) event;
+
+                // Cancel transfer
                 if (keypress.equals(kbCtrlC)
                     || keypress.equals(kbEsc)
                     // Backtick cancels too.
@@ -265,6 +267,28 @@ public class QodemUI implements Runnable {
                     }
                     if (kermitSender != null) {
                         kermitSender.cancelTransfer(true);
+                    }
+                }
+
+                if (keypress.equals(kbS)) {
+                    // Skip file
+                    if (xmodemReceiver != null) {
+                        xmodemReceiver.skipFile(true);
+                    }
+                    if (xmodemSender != null) {
+                        xmodemSender.skipFile(true);
+                    }
+                    if (ymodemReceiver != null) {
+                        ymodemReceiver.skipFile(true);
+                    }
+                    if (ymodemSender != null) {
+                        ymodemSender.skipFile(true);
+                    }
+                    if (kermitReceiver != null) {
+                        kermitReceiver.skipFile(true);
+                    }
+                    if (kermitSender != null) {
+                        kermitSender.skipFile(true);
                     }
                 }
             }

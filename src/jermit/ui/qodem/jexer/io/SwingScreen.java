@@ -59,7 +59,7 @@ public final class SwingScreen extends Screen {
     /**
      * If true, use triple buffering thread.
      */
-    private static boolean tripleBuffer = true;
+    private static boolean tripleBuffer = false;
 
     /**
      * Cursor style to draw.

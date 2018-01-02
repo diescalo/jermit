@@ -86,11 +86,11 @@ public class LocalFile implements LocalFileInterface {
     /**
      * Get an OutputStream that can one can use to write to this thing.
      *
-     * @return the OutputStream
+     * @return the OutputStream, positioned to append
      * @throws IOException if an I/O error occurs
      */
     public OutputStream getOutputStream() throws IOException {
-        return new FileOutputStream(file);
+        return new FileOutputStream(file, true);
     }
 
     /**

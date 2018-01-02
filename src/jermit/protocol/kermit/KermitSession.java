@@ -110,6 +110,13 @@ public class KermitSession extends SerialFileTransferSession {
      */
     private byte [] lastPacketBytes;
 
+    /**
+     * Skip file mode.  0 = do nothing, 1 = skip this file and keep the
+     * partial download, 2 = skip this file and delete it.  Note package
+     * private access.
+     */
+    int skipFileMode = 0;
+
     // ------------------------------------------------------------------------
     // Constructors -----------------------------------------------------------
     // ------------------------------------------------------------------------
@@ -269,7 +276,11 @@ public class KermitSession extends SerialFileTransferSession {
      */
     @Override
     public void skipFile(boolean keepPartial) {
-        // TODO
+        if (keepPartial) {
+            skipFileMode = 1;
+        } else {
+            skipFileMode = 2;
+        }
     }
 
     /**
@@ -382,8 +393,11 @@ public class KermitSession extends SerialFileTransferSession {
             System.err.println("TIMEOUT");
         }
         addErrorMessage("TIMEOUT");
-
-        // TODO
+        consecutiveErrors++;
+        if (consecutiveErrors == 10) {
+            // Too many errors, we are done.
+            abort("TOO MANY TIMEOUTS");
+        }
     }
 
     /**
@@ -395,6 +409,13 @@ public class KermitSession extends SerialFileTransferSession {
     protected synchronized void abort(final String message) {
         if (DEBUG) {
             System.err.println("ABORT: " + message);
+        }
+        try {
+            sendError(message, sequenceNumber);
+        } catch (IOException e) {
+            if (DEBUG) {
+                e.printStackTrace();
+            }
         }
         synchronized (this) {
             setState(State.ABORT);
@@ -424,7 +445,11 @@ public class KermitSession extends SerialFileTransferSession {
     protected Packet getPacket() throws ReadTimeoutException, EOFException,
                                         IOException, KermitCancelledException {
 
-        return Packet.decode(input, transferParameters, kermitState);
+        Packet packet = Packet.decode(input, transferParameters, kermitState);
+        if (packet.parseState == Packet.ParseState.OK) {
+            consecutiveErrors = 0;
+        }
+        return packet;
     }
 
     /**
@@ -470,7 +495,7 @@ public class KermitSession extends SerialFileTransferSession {
      * @throws IOException if a java.io operation throws
      */
     protected void sendNak(final int seq) throws IOException {
-        Packet packet = new NakPacket(seq);
+        Packet packet = new NakPacket(transferParameters.active.checkType, seq);
         byte [] packetBytes = packet.encode(transferParameters);
         output.write(packetBytes);
         for (int i = 0; i < transferParameters.remote.NPAD; i++) {
@@ -512,6 +537,38 @@ public class KermitSession extends SerialFileTransferSession {
     }
 
     /**
+     * Construct and send an Error packet onto the wire.
+     *
+     * @param
+     * @param seq sequence number of the packet
+     * @throws IOException if a java.io operation throws
+     */
+    protected void sendError(final String message,
+        final int seq) throws IOException {
+
+        Packet packet = new ErrorPacket(message,
+            transferParameters.active.checkType, seq);
+        byte [] packetBytes = packet.encode(transferParameters);
+        output.write(packetBytes);
+        for (int i = 0; i < transferParameters.remote.NPAD; i++) {
+            output.write(transferParameters.remote.PADC);
+        }
+        output.flush();
+
+        if (DEBUG) {
+            System.err.printf("Output %d bytes to wire: ",
+                packetBytes.length + transferParameters.remote.NPAD);
+            for (int i = 0; i < packetBytes.length; i++) {
+                System.err.printf("%02x ", packetBytes[i]);
+            }
+            for (int i = 0; i < transferParameters.remote.NPAD; i++) {
+                System.err.printf("%02x ", transferParameters.remote.PADC);
+            }
+            System.err.println();
+        }
+    }
+
+    /**
      * Open a file for download, checking for existence and overwriting if
      * necessary.
      *
@@ -520,23 +577,132 @@ public class KermitSession extends SerialFileTransferSession {
      * packet in millis, or -1 if unknown
      * @param fileSize file size from the File-Attributes packet, or -1 if
      * unknown
+     * @param accessMode the requested access mode from the File-Attributes
+     * packet, or null if unknown
      * @return true if the transfer is ready to download another file
      */
     protected boolean openDownloadFile(final String filename,
-        final long fileModTime, final long fileSize) {
+        final long fileModTime, final long fileSize,
+        final FileAttributesPacket.NewFileAccessMode accessMode) {
 
         // Make sure we cannot overwrite this file.
         assert (transferDirectory != null);
         assert (filename != null);
         File checkExists = new File(transferDirectory, filename);
-        if ((checkExists.exists() == true) && (overwrite == false)) {
-            abort(filename + " already exists, will not overwrite");
+        if (checkExists.exists() == false) {
+            if (DEBUG) {
+                System.err.printf("%s does not exist, OK\n", filename);
+            }
+            openDownloadFile(checkExists, fileModTime, fileSize);
+            return true;
+        }
+
+        if (DEBUG) {
+            System.err.printf("%s already exists, checking access...\n",
+                filename);
+        }
+
+        if (accessMode == null) {
+            if (overwrite) {
+                // We are supposed to blow this file away
+                if (DEBUG) {
+                    System.err.println("accessMode is null, overwrite is " +
+                        "true, BLOW IT AWAY!");
+                }
+                openDownloadFile(checkExists, fileModTime, fileSize);
+                return true;
+            }
+
+            if (DEBUG) {
+                System.err.println("accessMode is null, overwrite is " +
+                    "false, will not overwrite file");
+            }
+            abort(filename + " exists, will not overwrite");
             return false;
         }
 
+        assert (accessMode != null);
+
+        boolean needNewFile = false;
+        switch (accessMode) {
+        case NEW:
+            if (DEBUG) {
+                System.err.println("accessMode NEW, creating new filename\n");
+            }
+            needNewFile = true;
+            break;
+        case SUPERSEDE:
+            if (DEBUG) {
+                System.err.println("accessMode SUPERSEDE, refuse to honor.  " +
+                    "Creating new filename instead.\n");
+            }
+            needNewFile = true;
+            break;
+        case WARN:
+            // If we have resend support, then this could be crash recovery
+            // instead.  The ONE thing Zmodem has over Kermit is the CRC
+            // check it does when looking for file collisions, as one can use
+            // that to get 95% correct behavior all the time: if the local
+            // file already exists and is bigger than remote, then use a new
+            // filename, else check CRC of overlapping regions and if
+            // different use new filename, else recover.
+            if (transferParameters.active.doResend) {
+                if (DEBUG) {
+                    System.err.println("accessMode WARN - try to resend");
+                }
+            } else {
+                if (DEBUG) {
+                    System.err.println("accessMode WARN - no crash recovery, " +
+                        "so new filename instead.");
+                }
+                needNewFile = true;
+            }
+            break;
+        case APPEND:
+            // We are supposed to append on the end, even if we don't have a
+            // file size.
+            if (DEBUG) {
+                System.err.println("accessMode APPEND, so append to same file");
+            }
+            break;
+        }
+
+        if (needNewFile) {
+            // Find the next unused filename.
+            for (int i = 0; i < 10000; i++) {
+                checkExists = new File(transferDirectory,
+                    String.format("%s.%04d", filename, i));
+                if (!checkExists.exists()) {
+                    break;
+                }
+            }
+            if (checkExists.exists()) {
+                // We tried 10000 new filenames, and they all exist.  Screw
+                // this, use rsync.
+                abort(filename + " exists, cannot find alternate name to use");
+                return false;
+            }
+        }
+
+        openDownloadFile(checkExists, fileModTime, fileSize);
+        return true;
+    }
+
+    /**
+     * Open a file for download.
+     *
+     * @param fileRef the file to open
+     * @param fileModTime file modification time from the File-Attributes
+     * packet in millis, or -1 if unknown
+     * @param fileSize file size from the File-Attributes packet, or -1 if
+     * unknown
+     */
+    private void openDownloadFile(final File fileRef,
+        final long fileModTime, final long fileSize) {
+
         // TODO: allow callers to provide a class name for the
         // LocalFileInterface implementation and use reflection to get it.
-        LocalFileInterface localFile = new LocalFile(checkExists);
+        LocalFileInterface localFile = new LocalFile(fileRef);
         if (DEBUG) {
             System.err.println("Transfer directory: " + transferDirectory);
             System.err.println("Download to: " + localFile.getLocalName());
@@ -572,8 +738,6 @@ public class KermitSession extends SerialFileTransferSession {
                 bytesTotal = bytesTotal + file.getBytesTotal();
             }
         }
-        // Good to go on another download.
-        return true;
     }
 
 }
