@@ -1,3 +1,11 @@
+January 2, 2018
+
+Prepping for the 0.0.3 release.  I have decided that Kermit streaming
+will be enabled by default: nearly everyone will be using it over TCP
+anyway, so may as well make it fast out of the box.  If Kermit ever
+does make a comeback I sincerely hope it doesn't suffer a second round
+of negging due to having defaults set for reliable rather than fast.
+
 January 1, 2018
 
 We are a lot more reliable over noisy links now.  Receiver detects

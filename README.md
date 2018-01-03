@@ -101,8 +101,9 @@ The following properties control features of Jermit:
   -----------------------
 
   If true, use streaming mode (do not send ACKs during file data
-  packets transfer).  Default: false.  Note that if streaming is
-  enabled, full duplex sliding windows will be disabled.
+  packets transfer).  Default: true.  Note that if streaming is
+  enabled, full duplex sliding windows (not yet implemented) is
+  automatically disabled.
 
   jermit.kermit.robustFilenames
   -----------------------------
@@ -145,6 +146,11 @@ ambiguous.  This section describes such issues.
 
   - See docs/protocols.md for general discussion of supported
     protocols.
+
+  - Kermit defaults to streaming enabled.  This is fast and
+    appropriate for TCP links.  However, it will fail on unreliable
+    links.  Pass -Djermit.kermit.streaming=false to the JVM for those
+    cases.
 
 
 Roadmap

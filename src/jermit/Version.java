@@ -3,7 +3,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (C) 2017 Kevin Lamonte
+ * Copyright (C) 2018 Kevin Lamonte
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -47,7 +47,7 @@ public class Version {
     /**
      * The copyright information.
      */
-    public static final String COPYRIGHT = "Copyright (C) 2017.  Licensed MIT.";
+    public static final String COPYRIGHT = "Copyright (C) 2018.  Licensed MIT.";
 
     /**
      * The copyright information.
@@ -55,7 +55,7 @@ public class Version {
     public static final String LICENSE = "" +
     "The MIT License (MIT)\n" +
     "\n" +
-    "Copyright (C) 2017 Kevin Lamonte\n" +
+    "Copyright (C) 2018 Kevin Lamonte\n" +
     "\n" +
     "Permission is hereby granted, free of charge, to any person obtaining\n" +
     "a copy of this software and associated documentation files (the \n" +

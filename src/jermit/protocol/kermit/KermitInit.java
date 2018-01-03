@@ -3,7 +3,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (C) 2017 Kevin Lamonte
+ * Copyright (C) 2018 Kevin Lamonte
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -61,7 +61,7 @@ final class KermitInit {
     /**
      * If true, use streaming mode for the file data portion.
      */
-    private boolean supportStreaming = false;
+    private boolean supportStreaming = true;
 
     /**
      * Start-of-packet mark byte.  Default is SOH (0x01).
@@ -251,9 +251,9 @@ final class KermitInit {
      */
     public void reset() {
         if (System.getProperty("jermit.kermit.streaming",
-                "false").equals("true")
+                "true").equals("false")
         ) {
-            supportStreaming = true;
+            supportStreaming = false;
         }
         if (System.getProperty("jermit.kermit.longPackets",
                 "true").equals("false")

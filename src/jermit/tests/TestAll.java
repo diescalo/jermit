@@ -3,7 +3,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (C) 2017 Kevin Lamonte
+ * Copyright (C) 2018 Kevin Lamonte
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -99,6 +99,7 @@ public class TestAll {
             /*
              * Basic uploads and downloads - clean line.
              */
+            System.setProperty("jermit.kermit.streaming", "false");
             (new Kermit1()).doTest();
             (new Kermit2()).doTest();
             (new Kermit3()).doTest();
@@ -108,6 +109,7 @@ public class TestAll {
             /*
              * Streaming tests.  Turn it off afterwards.
              */
+            System.setProperty("jermit.kermit.streaming", "true");
             (new Kermit6()).doTest();
             (new Kermit7()).doTest();
             System.setProperty("jermit.kermit.streaming", "false");

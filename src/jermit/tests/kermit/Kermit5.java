@@ -3,7 +3,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (C) 2017 Kevin Lamonte
+ * Copyright (C) 2018 Kevin Lamonte
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -132,9 +132,7 @@ public class Kermit5 extends SerialTransferTest implements Runnable {
         for (;;) {
             try {
                 kermitReceiver.waitFor();
-                if (!kermitReceiver.isAlive()) {
-                    break;
-                }
+                break;
             } catch (InterruptedException e) {
                 // SQUASH
             }

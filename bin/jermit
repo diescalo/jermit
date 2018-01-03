@@ -2,11 +2,11 @@
 
 # This script tries to find a working JVM and jermit.jar, and then run
 # the selected UI.
-# 
+#
 # -----------------------------------------------------------------------------
 # The MIT License (MIT)
 #
-# Copyright (C) 2017 Kevin Lamonte
+# Copyright (C) 2018 Kevin Lamonte
 #
 # Permission is hereby granted, free of charge, to any person
 # obtaining a copy of this software and associated documentation files
@@ -42,4 +42,48 @@ fi
 JAVA=java
 UI=jermit.ui.qodem.Jermit
 
-$JAVA -cp $JERMIT_JAR $UI $*
+# -----------------------------------------------------------------------------
+# Available system properties to control Jermit -------------------------------
+# -----------------------------------------------------------------------------
+#
+#   jermit.kermit.streaming
+#
+#       If true, use streaming mode (do not send ACKs during file data
+#       packets transfer).  Default: true.  Note that if streaming is
+#       enabled, full duplex sliding windows (not yet implemented)
+#       is automatically disabled.
+#
+#   jermit.kermit.robustFilenames
+#
+#       If true, when sending files convert filenames to Kermit's
+#       "common form": only numbers and letters, only one '.' in the
+#       filename, '.'  cannot be the first or last character, and all
+#       uppercase.  Default: false.
+#
+#   jermit.kermit.resend
+#
+#       If true, support the RESEND option to resume file transfers.
+#       Default: true.
+#
+#   jermit.kermit.longPackets
+#
+#       If true, support long packets (up to 9k).  Default: true.
+#
+#   jermit.kermit.download.forceBinary
+#
+#       If true, treat all downloaded files as though they are binary
+#       (do not convert line endings).  Default: true.
+#
+#   jermit.kermit.upload.forceBinary
+#
+#       If true, treat all uploaded files as though they are binary
+#       (do not advertise as ASCII in the Attributes packet).
+#       Default: true.
+#
+JVM_ARGS=
+
+# -----------------------------------------------------------------------------
+# Main ------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
+
+$JAVA $JVM_ARGS -cp $JERMIT_JAR $UI $*

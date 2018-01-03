@@ -93,3 +93,8 @@ across serial ports, UDP packets, and TCP streams.  (One can also
 escape any character sequence as needed, e.g. the "~." sequence used
 to terminate ssh links.  Protecting ssh like this is impossible in
 Zmodem.)
+
+Zmodem
+------
+
+Zmodem is not yet implemented, but is expected in mid-2018.
