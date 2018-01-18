@@ -503,6 +503,11 @@ public class YmodemSession extends XmodemSession {
         if ((checkExists.exists() == true) && (overwrite == false)) {
             abort(filename + " already exists, will not overwrite");
             return false;
+        } else if (checkExists.exists() && overwrite) {
+            checkExists.delete();
+            try {
+                checkExists.createNewFile();
+            } catch (IOException e) { }
         }
 
         // TODO: allow callers to provide a class name for the
