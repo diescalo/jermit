@@ -514,9 +514,10 @@ public class XmodemSession extends SerialFileTransferSession {
      * @param filename the name of the file to trim on the local filesystem
      */
     protected void trimEOF(final String filename) {
+        RandomAccessFile contents = null;
         try {
             // SetLength() requires the file be open in read-write.
-            RandomAccessFile contents = new RandomAccessFile(filename, "rw");
+            contents = new RandomAccessFile(filename, "rw");
             while (contents.length() > 0) {
                 contents.seek(contents.length() - 1);
                 int ch = contents.read();
@@ -531,6 +532,11 @@ public class XmodemSession extends SerialFileTransferSession {
             if (DEBUG) {
                 e.printStackTrace();
             }
+        } finally {
+            if (contents != null)
+                try {
+                    contents.close();
+                } catch (IOException e) { }
         }
     }
 

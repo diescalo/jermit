@@ -252,6 +252,9 @@ public class XmodemReceiver implements Runnable {
                 if (file.getLocalFile() instanceof LocalFile) {
                     // We know that this is wrapping a file, hence we can
                     // trimEOF() it.
+                    try {
+                        file.getLocalFile().getOutputStream().close();
+                    } catch (IOException e) { }
                     session.trimEOF(file.getLocalFile().getLocalName());
                 }
                 break;
