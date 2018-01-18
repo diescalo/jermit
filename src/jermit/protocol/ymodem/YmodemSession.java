@@ -445,7 +445,7 @@ public class YmodemSession extends XmodemSession {
             }
 
             if (data[i] == 0) {
-                if ((i - begin) > 1) {
+                if ((i - begin) > 1 || (filename != null && filename.length() > 1 && (i - begin) > 0)) {
                     try {
                         // We have a value, is it filename or file size?
                         if (filename == null) {
