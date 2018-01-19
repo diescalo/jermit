@@ -455,9 +455,11 @@ public class YmodemSession extends XmodemSession {
                             // File size.
                             String fileSizeString = new String(data, begin,
                                 i - begin, "UTF-8");
-                            System.err.println("i " + i + " begin " + begin);
-                            System.err.println("fileSizeString '" +
-                                fileSizeString + "'");
+                            if (DEBUG) {
+                                System.err.println("i " + i + " begin " + begin);
+                                System.err.println("fileSizeString '" +
+                                    fileSizeString + "'");
+                            }
 
                             fileSize = Long.parseLong(fileSizeString);
 
